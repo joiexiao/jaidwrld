@@ -1,0 +1,3 @@
+# content/ — konten portfolio sebagai OBJEK TYPESCRIPT (type-safe).
+# Fungsi: sumber data statis; gampang dipindah ke API Go nanti tanpa ubah UI.
+# Isi: projects.ts, site.ts (metadata), about.ts.

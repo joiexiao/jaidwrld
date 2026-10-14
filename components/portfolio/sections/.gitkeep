@@ -1,0 +1,3 @@
+# components/portfolio/sections/ — blok halaman portfolio (default server component).
+# Isi: HeroSection, AboutSection, WorkSection, ContactSection.
+# Bungkus bagian yang butuh gerak dengan primitif dari components/animation.

@@ -1,0 +1,3 @@
+# .vercelignore — file/folder yang TIDAK di-upload ke Vercel saat deploy.
+# Isi: path yang tak perlu di-deploy (mis. backend Go, aset besar non-runtime).
+backend/

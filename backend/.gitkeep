@@ -1,0 +1,3 @@
+# Placeholder agar folder backend/ ikut ter-commit (git tak melacak folder kosong).
+# Isi nanti: service Go untuk API. Mulai dengan `go mod init <module>` di folder ini.
+# Lihat backend/README.md untuk rencana & kontraknya.

@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
-:root {
+/* Tema di-drive dari atribut `data-theme` di <html>, bukan prefers-color-scheme.
+   Nilai `data-theme` selalu hasil resolve (light|dark); preferensi user
+   (light|dark|system) disimpan di localStorage oleh hooks/use-theme.ts. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #f7f7f5;
+  --surface-2: #e9e9e7;
+  --muted: #a5a5a3;
+  --border: rgba(23, 23, 23, 0.1);
+  --accent: #536d69;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #1d1d1d;
+  --foreground: #ededed;
+  --surface: #141414;
+  --surface-2: #1f1f1f;
+  --muted: #8a8a86;
+  --border: rgba(237, 237, 237, 0.12);
+  --accent: #d8ff62;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-rubik);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-rubik), sans-serif;
 }

@@ -1,0 +1,2 @@
+# hooks/ — custom React hooks LINTAS-AREA (client).
+# Isi: useMediaQuery, useScrollProgress, useDebounce, dst.

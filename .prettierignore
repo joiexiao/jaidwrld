@@ -1,0 +1,12 @@
+# .prettierignore — daftar file/folder yang DILEWATI Prettier (dipakai script format & format:check).
+# Isi: tambahkan path yang tak ingin diformat (folder generated, kode Go, dsb).
+
+.next
+node_modules
+out
+build
+coverage
+pnpm-lock.yaml
+next-env.d.ts
+.vercel
+backend

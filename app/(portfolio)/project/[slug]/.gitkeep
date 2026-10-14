@@ -1,0 +1,2 @@
+# app/(portfolio)/project/[slug]/ — route dinamis /project/:slug (detail proyek).
+# Tambah page.tsx + generateStaticParams saat mulai dikerjakan.

@@ -1,3 +1,7 @@
+# .gitignore — daftar file/folder yang TIDAK di-track git.
+# Isi: dependensi, hasil build, env lokal, dan binary Go (lihat bagian bawah).
+# Catatan: `.env*` meng-ignore semua file .env, tapi `.env.example` DIKECUALIKAN (lihat bawah).
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -32,6 +36,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +44,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# go backend (reserved)
+/backend/bin/
+/backend/tmp/
+*.exe

@@ -1,0 +1,4 @@
+# components/animation/ — primitif animasi LINTAS-AREA (semua wajib "use client").
+# Fungsi: pembungkus gerak yang dipakai berulang oleh portfolio & dashboard.
+# Isi: Reveal, Parallax, Marquee, SmoothScrollProvider, Cursor, dst.
+# Aturan: TIDAK boleh import dari components/portfolio atau components/dashboard.
