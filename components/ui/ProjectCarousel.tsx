@@ -1,44 +1,50 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import PortfolioCard from "@/components/ui/PortfolioCard";
 import type { Project } from "@/types/project";
 
 type ProjectCarouselProps = {
   projects: Project[];
-  className?: string;
+  /** Index project aktif (controlled oleh parent). */
+  activeIndex: number;
+  /** Callback saat navigasi (wheel) mengubah project aktif. */
+  onActiveIndexChange: (index: number) => void;
+  /** Mode expand — wheel dinonaktifkan agar scroll masuk ke galeri. */
+  expanded?: boolean;
+  /** Fase menutup fan sebelum expand (diteruskan ke PortfolioCard). */
+  closing?: boolean;
+  /** Dipanggil saat card diklik untuk expand. */
+  onExpand?: () => void;
   enableWheel?: boolean;
+  className?: string;
 };
 
 export default function ProjectCarousel({
   projects,
-  className = "",
+  activeIndex,
+  onActiveIndexChange,
+  expanded = false,
+  closing = false,
+  onExpand,
   enableWheel = true,
+  className = "",
 }: ProjectCarouselProps) {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const activeIndexRef = useRef(0);
+  const activeIndexRef = useRef(activeIndex);
   const wheelLockedRef = useRef(false);
   const wheelDeltaRef = useRef(0);
   const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Selalu sinkron agar handler wheel membaca index terbaru tanpa re-subscribe.
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
   const projectCount = projects.length;
   const activeProject = projects[activeIndex];
 
-  const changeProject = useCallback(
-    (index: number) => {
-      if (projectCount === 0) return;
-
-      const nextIndex = (index + projectCount) % projectCount;
-
-      activeIndexRef.current = nextIndex;
-      setActiveIndex(nextIndex);
-    },
-    [projectCount],
-  );
-
   useEffect(() => {
-    if (!enableWheel || projectCount <= 1) return;
+    if (!enableWheel || expanded || projectCount <= 1) return;
 
     const handleWheel = (event: WheelEvent) => {
       // Only capture vertical wheel gestures.
@@ -61,7 +67,7 @@ export default function ProjectCarousel({
       if (nextIndex < 0 || nextIndex >= projectCount) return;
 
       activeIndexRef.current = nextIndex;
-      setActiveIndex(nextIndex);
+      onActiveIndexChange(nextIndex);
       wheelLockedRef.current = true;
 
       if (wheelTimeoutRef.current) {
@@ -82,56 +88,18 @@ export default function ProjectCarousel({
         clearTimeout(wheelTimeoutRef.current);
       }
     };
-  }, [enableWheel, projectCount]);
+  }, [enableWheel, expanded, projectCount, onActiveIndexChange]);
 
   if (!activeProject) return null;
 
   return (
-    <section
-      aria-label="Featured projects"
-      className={`relative flex w-full flex-col items-center ${className}`}
-    >
-      <div className="relative w-full max-w-[288px] sm:max-w-[312px] lg:max-w-[352px]">
-        <PortfolioCard key={activeProject.slug} project={activeProject} />
-      </div>
-
-      {/* Desktop navigation dots — at the right edge of the container */}
-      {projectCount > 1 && (
-        <div className="absolute top-1/2 right-0 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex">
-          {projects.map((project, index) => (
-            <button
-              key={project.slug}
-              type="button"
-              aria-label={`Show ${project.name}`}
-              aria-current={activeIndex === index ? "true" : undefined}
-              onClick={() => changeProject(index)}
-              className={`size-1.5 rounded-full transition-all duration-300 ${
-                activeIndex === index
-                  ? "bg-foreground scale-110"
-                  : "bg-border hover:bg-muted"
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Mobile navigation dots */}
-      {projectCount > 1 && (
-        <div className="mt-8 flex items-center gap-3 md:hidden">
-          {projects.map((project, index) => (
-            <button
-              key={project.slug}
-              type="button"
-              aria-label={`Show ${project.name}`}
-              aria-current={activeIndex === index ? "true" : undefined}
-              onClick={() => changeProject(index)}
-              className={`size-1.5 rounded-full transition-all ${
-                activeIndex === index ? "bg-foreground" : "bg-border"
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+    <PortfolioCard
+      key={activeProject.slug}
+      project={activeProject}
+      expanded={expanded}
+      closing={closing}
+      onActivate={onExpand}
+      className={className}
+    />
   );
 }

@@ -1,9 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import type { Route } from "next";
+import { useState, type PointerEvent } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import type { Project } from "@/types/project";
 import { useMagnetic } from "@/hooks/use-magnetic";
 
@@ -18,6 +16,12 @@ type PortfolioCardProps = {
   magnetScale?: number;
   /** Maksimum kemiringan 3D mengikuti kursor (derajat). */
   tilt?: number;
+  /** Card sedang dalam mode expand — fan ditutup & magnet dimatikan. */
+  expanded?: boolean;
+  /** Fase menutup fan sebelum expand (visual "kartu dirapikan"). */
+  closing?: boolean;
+  /** Dipanggil saat card diklik (trigger expand). */
+  onActivate?: () => void;
 };
 
 // Konfigurasi kipas per-depth (index 0 = layer paling dekat front card).
@@ -38,6 +42,8 @@ const CARD_SIZE =
 const IMAGE_SIZES =
   "(min-width: 1024px) 352px, (min-width: 640px) 312px, 288px";
 
+const FAN_TRANSITION = "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]";
+
 export default function PortfolioCard({
   project,
   className = "",
@@ -45,8 +51,15 @@ export default function PortfolioCard({
   maxOffset = 12,
   magnetScale = 1.015,
   tilt = 7,
+  expanded = false,
+  closing = false,
+  onActivate,
 }: PortfolioCardProps) {
   const [cover, ...backImages] = project.images;
+
+  // Fan di-drive state (bukan CSS group-hover) supaya bisa dipaksa menutup
+  // saat `closing`/`expanded` — memberi kontrol penuh atas animasi "rapikan".
+  const [hovered, setHovered] = useState(false);
 
   // Magnet hover: seluruh stack tertarik ke kursor + miring 3D mengikuti posisi.
   const { ref, handlers } = useMagnetic<HTMLDivElement>({
@@ -54,33 +67,51 @@ export default function PortfolioCard({
     maxOffset,
     magnetScale,
     tilt,
+    disabled: expanded || closing,
   });
+
+  const collapsed = expanded || closing;
+  const fanOpen = hovered && !collapsed;
+
+  const handlePointerEnter = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "touch") setHovered(true);
+    handlers.onPointerEnter(event);
+  };
+
+  const handlePointerLeave = (event: PointerEvent<HTMLDivElement>) => {
+    setHovered(false);
+    handlers.onPointerLeave(event);
+  };
 
   return (
     <div
       ref={ref}
-      {...handlers}
+      onPointerEnter={handlePointerEnter}
+      onPointerMove={handlers.onPointerMove}
+      onPointerLeave={handlePointerLeave}
+      onPointerDown={handlers.onPointerDown}
+      onPointerUp={handlers.onPointerUp}
+      onPointerCancel={handlers.onPointerCancel}
       style={{ transformOrigin: "center center", willChange: "transform" }}
-      className={`group/card-stack relative flex w-full items-center justify-center ${className}`}
+      className={`relative flex w-full items-center justify-center ${className}`}
     >
       {/* Back layers — satu kartu per gambar sisa (images[1..]) */}
       {backImages.map((src, index) => {
         const fan = FAN_LAYERS[Math.min(index, FAN_LAYERS.length - 1)];
 
+        // Saat collapsed, semua layer rata di belakang front (visual 1 kartu).
+        const rotate = collapsed ? 0 : fanOpen ? fan.hoverRotate : fan.rotate;
+        const scale = collapsed ? 1 : fanOpen ? fan.hoverScale : fan.scale;
+
         return (
           <div
             key={src}
             aria-hidden="true"
-            style={
-              {
-                "--fan-deg": `${fan.rotate}deg`,
-                "--fan-scale": fan.scale,
-                "--fan-deg-hover": `${fan.hoverRotate}deg`,
-                "--fan-scale-hover": fan.hoverScale,
-                zIndex: 9 - index,
-              } as CSSProperties
-            }
-            className={`pointer-events-none absolute ${CARD_SIZE} origin-bottom [transform:rotate(var(--fan-deg))_scale(var(--fan-scale))] overflow-hidden rounded-[34px] transition-[transform,filter] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/card-stack:[transform:rotate(var(--fan-deg-hover))_scale(var(--fan-scale-hover))] motion-reduce:transition-none ${project.theme}`}
+            style={{
+              transform: `rotate(${rotate}deg) scale(${scale})`,
+              zIndex: 9 - index,
+            }}
+            className={`pointer-events-none absolute ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] motion-reduce:transition-none ${FAN_TRANSITION} ${project.theme}`}
           >
             <Image
               src={src}
@@ -95,10 +126,13 @@ export default function PortfolioCard({
         );
       })}
 
-      {/* Front card — gambar utama (images[0]) */}
-      <Link
-        href={`/project/${project.slug}` as Route}
-        className={`relative z-10 block ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] transition-[transform,translate,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/card-stack:-translate-y-[3px] group-hover/card-stack:scale-[1.01] motion-reduce:transition-none ${project.theme}`}
+      {/* Front card — gambar utama (images[0]); klik = trigger expand */}
+      <button
+        type="button"
+        onClick={onActivate}
+        aria-label={`Buka project ${project.name}`}
+        style={{ transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none" }}
+        className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left motion-reduce:transition-none transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${project.theme}`}
       >
         {cover && (
           <Image
@@ -119,7 +153,7 @@ export default function PortfolioCard({
             {project.name}
           </h2>
         </div>
-      </Link>
+      </button>
     </div>
   );
 }
