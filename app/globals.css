@@ -47,3 +47,38 @@ body {
   color: var(--foreground);
   font-family: var(--font-rubik), sans-serif;
 }
+
+/* ---------------------------------------------------------------------------
+   View Transitions (React <ViewTransition> + browser View Transitions API).
+   - `share="morph"` menambahkan class `.morph` → tuning durasi & blur morph.
+   - Crossfade (project-info, gallery-view) pakai animasi default browser.
+   - Overlay dibuat pointer-events:none agar konten tetap interaktif.
+   - Hormati prefers-reduced-motion: matikan durasi.
+--------------------------------------------------------------------------- */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(.morph) {
+  animation-duration: 460ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-image-pair(.morph) {
+  animation-name: vt-morph-blur;
+}
+
+@keyframes vt-morph-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

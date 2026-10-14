@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type PointerEvent } from "react";
+import { ViewTransition } from "react";
 import Image from "next/image";
 import type { Project } from "@/types/project";
 import { useMagnetic } from "@/hooks/use-magnetic";
@@ -22,6 +23,8 @@ type PortfolioCardProps = {
   closing?: boolean;
   /** Dipanggil saat card diklik (trigger expand). */
   onActivate?: () => void;
+  /** Dipanggil saat pointer masuk card (untuk prefetch route detail). */
+  onPrefetch?: () => void;
 };
 
 // Konfigurasi kipas per-depth (index 0 = layer paling dekat front card).
@@ -54,6 +57,7 @@ export default function PortfolioCard({
   expanded = false,
   closing = false,
   onActivate,
+  onPrefetch,
 }: PortfolioCardProps) {
   const [cover, ...backImages] = project.images;
 
@@ -75,6 +79,7 @@ export default function PortfolioCard({
 
   const handlePointerEnter = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "touch") setHovered(true);
+    onPrefetch?.();
     handlers.onPointerEnter(event);
   };
 
@@ -126,34 +131,41 @@ export default function PortfolioCard({
         );
       })}
 
-      {/* Front card — gambar utama (images[0]); klik = trigger expand */}
-      <button
-        type="button"
-        onClick={onActivate}
-        aria-label={`Buka project ${project.name}`}
-        style={{ transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none" }}
-        className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left motion-reduce:transition-none transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${project.theme}`}
+      {/* Front card — gambar utama (images[0]); klik = trigger expand.
+          Dibungkus View Transition: morph card ini ⇄ panel galeri di detail. */}
+      <ViewTransition
+        name={`project-${project.slug}`}
+        share="morph"
+        default="none"
       >
-        {cover && (
-          <Image
-            src={cover}
-            alt={project.name}
-            fill
-            sizes={IMAGE_SIZES}
-            className="object-cover"
-          />
-        )}
+        <button
+          type="button"
+          onClick={onActivate}
+          aria-label={`Buka project ${project.name}`}
+          style={{ transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none" }}
+          className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left motion-reduce:transition-none transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${project.theme}`}
+        >
+          {cover && (
+            <Image
+              src={cover}
+              alt={project.name}
+              fill
+              sizes={IMAGE_SIZES}
+              className="object-cover"
+            />
+          )}
 
-        {/* Legibility gradient */}
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          {/* Legibility gradient */}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-        {/* Project title */}
-        <div className="absolute inset-x-0 bottom-0 p-6">
-          <h2 className="text-xl font-medium tracking-[-0.04em] text-white">
-            {project.name}
-          </h2>
-        </div>
-      </button>
+          {/* Project title */}
+          <div className="absolute inset-x-0 bottom-0 p-6">
+            <h2 className="text-xl font-medium tracking-[-0.04em] text-white">
+              {project.name}
+            </h2>
+          </div>
+        </button>
+      </ViewTransition>
     </div>
   );
 }

@@ -10,12 +10,12 @@ type ProjectCarouselProps = {
   activeIndex: number;
   /** Callback saat navigasi (wheel) mengubah project aktif. */
   onActiveIndexChange: (index: number) => void;
-  /** Mode expand — wheel dinonaktifkan agar scroll masuk ke galeri. */
-  expanded?: boolean;
-  /** Fase menutup fan sebelum expand (diteruskan ke PortfolioCard). */
+  /** Fase menutup fan sebelum navigasi (diteruskan ke PortfolioCard). */
   closing?: boolean;
-  /** Dipanggil saat card diklik untuk expand. */
-  onExpand?: () => void;
+  /** Dipanggil saat card diklik untuk membuka detail. */
+  onOpen?: () => void;
+  /** Prefetch route detail saat pointer masuk card. */
+  onPrefetch?: () => void;
   enableWheel?: boolean;
   className?: string;
 };
@@ -24,9 +24,9 @@ export default function ProjectCarousel({
   projects,
   activeIndex,
   onActiveIndexChange,
-  expanded = false,
   closing = false,
-  onExpand,
+  onOpen,
+  onPrefetch,
   enableWheel = true,
   className = "",
 }: ProjectCarouselProps) {
@@ -44,7 +44,7 @@ export default function ProjectCarousel({
   const activeProject = projects[activeIndex];
 
   useEffect(() => {
-    if (!enableWheel || expanded || projectCount <= 1) return;
+    if (!enableWheel || projectCount <= 1) return;
 
     const handleWheel = (event: WheelEvent) => {
       // Only capture vertical wheel gestures.
@@ -88,7 +88,7 @@ export default function ProjectCarousel({
         clearTimeout(wheelTimeoutRef.current);
       }
     };
-  }, [enableWheel, expanded, projectCount, onActiveIndexChange]);
+  }, [enableWheel, projectCount, onActiveIndexChange]);
 
   if (!activeProject) return null;
 
@@ -96,9 +96,9 @@ export default function ProjectCarousel({
     <PortfolioCard
       key={activeProject.slug}
       project={activeProject}
-      expanded={expanded}
       closing={closing}
-      onActivate={onExpand}
+      onActivate={onOpen}
+      onPrefetch={onPrefetch}
       className={className}
     />
   );
