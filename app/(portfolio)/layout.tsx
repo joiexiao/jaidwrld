@@ -9,7 +9,9 @@ import { ProjectSelectionProvider } from "@/components/portfolio/project-selecti
 export default function PortfolioLayout({ children }: LayoutProps<"/">) {
   return (
     <ProjectSelectionProvider>
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div data-portfolio className="flex flex-1 flex-col">
+        {children}
+      </div>
     </ProjectSelectionProvider>
   );
 }

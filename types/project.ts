@@ -15,6 +15,14 @@ export type Project = {
   category: string;
   year: string;
   description: string;
+  /** Isi kartu "About project" di panel detail. */
+  about: string;
+  /** Isi kartu "Challenge" di panel detail. */
+  challenge: string;
+  /** Isi kartu "Solution" di panel detail. */
+  solution: string;
+  /** Isi kartu "Result" di panel detail. */
+  result: string;
   role: string;
   tech: string[];
   links: ProjectLink[];

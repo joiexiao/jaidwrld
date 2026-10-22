@@ -13,6 +13,14 @@ export const projects: Project[] = [
     year: "2026",
     description:
       "Design system untuk dashboard operasional SIDSNEAKS: komponen yang konsisten, token warna, dan alur data yang memudahkan tim membangun fitur baru tanpa redesign.",
+    about:
+      "Placeholder — latar belakang SIDSNEAKS dan alasan membangun satu sistem desain untuk dashboard operasional.",
+    challenge:
+      "Placeholder — tantangan menyatukan komponen, token warna, dan alur data yang tadinya tersebar dan tidak konsisten.",
+    solution:
+      "Placeholder — solusi: design system dengan komponen reusable, token warna terpusat, dan dokumentasi alur data.",
+    result:
+      "Placeholder — hasil: tim lebih cepat membangun fitur baru tanpa redesign, tampilan jadi konsisten.",
     role: "UI/UX Designer",
     tech: ["Figma", "Design Tokens", "Component Library", "Dashboard UI"],
     links: [
@@ -30,11 +38,19 @@ export const projects: Project[] = [
   {
     slug: "kala-loop",
     number: "02",
-    name: "KALA LOOP",
+    name: "Kala Loop",
     category: "Combat Sports Platform",
     year: "2026",
     description:
       "Platform combat sports dengan identitas visual yang tegas — membangun pengalaman 'Common Ground' yang menghubungkan atlet, event, dan komunitas.",
+    about:
+      "Placeholder — latar belakang Kala Loop sebagai platform combat sports dengan identitas visual yang tegas.",
+    challenge:
+      "Placeholder — tantangan menyatukan atlet, event, dan komunitas dalam satu pengalaman 'Common Ground'.",
+    solution:
+      "Placeholder — solusi: sistem identitas visual dan alur platform yang konsisten di seluruh touchpoint.",
+    result:
+      "Placeholder — hasil: identitas yang kuat dan pengalaman pengguna yang kohesif di seluruh platform.",
     role: "UI/UX Designer",
     tech: ["Figma", "Brand Identity", "Web Design", "Prototyping"],
     links: [
@@ -52,11 +68,19 @@ export const projects: Project[] = [
   {
     slug: "heulaulabs",
     number: "03",
-    name: "HEULAULABS",
+    name: "Heulaulabs",
     category: "Reservation Platform",
     year: "2025",
     description:
       "Pengalaman reservasi penginapan yang tenang dan dekat dengan alam — alur pemesanan sederhana dengan penekanan pada kejelasan dan kenyamanan.",
+    about:
+      "Placeholder — latar belakang Heulaulabs sebagai platform reservasi penginapan yang tenang dan dekat dengan alam.",
+    challenge:
+      "Placeholder — tantangan menjaga alur pemesanan tetap sederhana tanpa mengorbankan informasi penting.",
+    solution:
+      "Placeholder — solusi: alur booking ringkas dengan penekanan pada kejelasan dan kenyamanan pengguna.",
+    result:
+      "Placeholder — hasil: proses reservasi yang lebih cepat dipahami dan nyaman digunakan.",
     role: "UI/UX Designer",
     tech: ["Figma", "UX Research", "Web Design", "Booking Flow"],
     links: [

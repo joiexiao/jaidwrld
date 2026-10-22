@@ -25,6 +25,8 @@ type PortfolioCardProps = {
   onActivate?: () => void;
   /** Dipanggil saat pointer masuk card (untuk prefetch route detail). */
   onPrefetch?: () => void;
+  /** Paksa fan terbuka (dipakai animasi intro home; lepas → menutup smooth). */
+  previewFan?: boolean;
 };
 
 // Konfigurasi kipas per-depth (index 0 = layer paling dekat front card).
@@ -38,14 +40,16 @@ const FAN_LAYERS = [
 ];
 
 // Ukuran kartu responsif (lebar x tinggi): base 288x296, sm 312x320, lg 352x362.
-const CARD_SIZE =
+// Di-export supaya komponen lain (mis. placeholder About) bisa menyamakan ukuran persis.
+export const CARD_SIZE =
   "h-[296px] w-[288px] sm:h-[320px] sm:w-[312px] lg:h-[362px] lg:w-[352px]";
 
 // `sizes` untuk next/image — sinkron dengan CARD_SIZE di atas.
 const IMAGE_SIZES =
   "(min-width: 1024px) 352px, (min-width: 640px) 312px, 288px";
 
-const FAN_TRANSITION = "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]";
+const FAN_TRANSITION =
+  "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]";
 
 export default function PortfolioCard({
   project,
@@ -58,6 +62,7 @@ export default function PortfolioCard({
   closing = false,
   onActivate,
   onPrefetch,
+  previewFan = false,
 }: PortfolioCardProps) {
   const [cover, ...backImages] = project.images;
 
@@ -75,7 +80,7 @@ export default function PortfolioCard({
   });
 
   const collapsed = expanded || closing;
-  const fanOpen = hovered && !collapsed;
+  const fanOpen = (hovered || previewFan) && !collapsed;
 
   const handlePointerEnter = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "touch") setHovered(true);
@@ -142,8 +147,10 @@ export default function PortfolioCard({
           type="button"
           onClick={onActivate}
           aria-label={`Buka project ${project.name}`}
-          style={{ transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none" }}
-          className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left motion-reduce:transition-none transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${project.theme}`}
+          style={{
+            transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none",
+          }}
+          className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${project.theme}`}
         >
           {cover && (
             <Image

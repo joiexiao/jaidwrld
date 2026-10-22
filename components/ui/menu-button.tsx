@@ -6,35 +6,53 @@ import {
   useId,
   useRef,
   useState,
+  ViewTransition,
   type CSSProperties,
 } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { ButtonIcon } from "@/types/icon";
+import { ChevronLeft } from "lucide-react";
 import {
   AnimatePresence,
   motion,
   useReducedMotion,
   type Variants,
 } from "framer-motion";
+
 import PortfolioButton from "@/components/ui/PortfolioButton";
 
 export type MenuOption = {
-  icon?: LucideIcon | boolean | "only";
+  icon?: ButtonIcon;
   label?: string;
   ariaLabel: string;
   onClick?: () => void;
   showHoverLabel?: boolean;
   hoverLabel?: string;
+  copiedLabel?: string;
 };
 
 type MenuButtonProps = {
   options: MenuOption[];
-  triggerIcon?: LucideIcon | boolean | "only";
+  triggerIcon?: ButtonIcon;
+  /** Icon main button saat menu terbuka. Default ChevronLeft. */
+  activeIcon?: ButtonIcon;
+  /** Memaksa icon main button, terlepas dari status menu. */
+  forceTriggerIcon?: ButtonIcon;
   triggerLabel?: string;
   direction?: "right" | "left";
   withText?: boolean;
   defaultOpen?: boolean;
+  /** Mode terkontrol: bila diisi, state internal diabaikan. */
+  open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSelect?: (option: MenuOption, index: number) => void;
+  /** Override klik trigger, misalnya untuk navigasi. */
+  onMainClick?: () => void;
+  /** Tutup menu saat klik di luar area menu. Default true. */
+  dismissOnOutsideClick?: boolean;
+  /** Bila diisi, Escape memanggil ini (mis. navigasi back) alih-alih menutup. */
+  onEscape?: () => void;
+  /** Nama view-transition untuk morph beda halaman (mis. "contact-menu"). */
+  viewTransitionName?: string;
   className?: string;
 };
 
@@ -77,40 +95,60 @@ const itemVariants: Variants = {
 export default function MenuButton({
   options,
   triggerIcon = "only",
+  activeIcon,
+  forceTriggerIcon,
   triggerLabel = "Menu",
   direction = "right",
   withText = false,
   defaultOpen = false,
+  open,
   onOpenChange,
   onSelect,
+  onMainClick,
+  dismissOnOutsideClick = true,
+  onEscape,
   className = "",
+  viewTransitionName,
 }: MenuButtonProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : internalOpen;
+
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const reduceMotion = useReducedMotion();
 
-  // Right: menu enters from the left, exits back to the right.
-  // Left: menu enters from the right, exits back to the left.
+  // Right: menu enters from the left.
+  // Left: menu enters from the right.
   const slideDirection = direction === "right" ? -1 : 1;
   const slideX = reduceMotion ? 0 : slideDirection;
   const showTriggerText = withText && Boolean(triggerLabel);
 
+  // Force a specific icon when provided.
+  // Otherwise, show activeIcon (default ChevronLeft) while active and
+  // triggerIcon while inactive.
+  const activeTriggerIcon =
+    forceTriggerIcon ?? (isOpen ? (activeIcon ?? ChevronLeft) : triggerIcon);
+
   const updateOpen = useCallback(
     (next: boolean) => {
-      setIsOpen(next);
+      if (!controlled) {
+        setInternalOpen(next);
+      }
+
       onOpenChange?.(next);
     },
-    [onOpenChange],
+    [controlled, onOpenChange],
   );
 
   const handleSelect = useCallback(
     (option: MenuOption, index: number) => {
       option.onClick?.();
       onSelect?.(option, index);
-      updateOpen(false);
+      // Sengaja tidak menutup menu saat opsi diklik.
     },
-    [onSelect, updateOpen],
+    [onSelect],
   );
 
   useEffect(() => {
@@ -122,36 +160,45 @@ export default function MenuButton({
       }
     };
 
+    // Escape: bila `onEscape` diisi (mis. back dari About), panggil itu;
+    // kalau tidak, perilaku default = tutup menu.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key !== "Escape") return;
+
+      if (onEscape) {
+        onEscape();
+      } else {
         updateOpen(false);
       }
     };
 
-    document.addEventListener("pointerdown", handlePointerDown);
+    if (dismissOnOutsideClick) {
+      document.addEventListener("pointerdown", handlePointerDown);
+    }
+
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, updateOpen]);
+  }, [isOpen, updateOpen, dismissOnOutsideClick, onEscape]);
 
   const triggerStyle: CSSProperties = isOpen ? { borderRadius: "9999px" } : {};
 
-  return (
+  const content = (
     <div
       ref={rootRef}
       className={`relative flex items-center gap-2 ${className}`}
     >
       <PortfolioButton
-        icon={triggerIcon}
+        icon={activeTriggerIcon}
         text={showTriggerText}
         colour={isOpen ? "dark" : "light"}
         aria-label={showTriggerText ? undefined : triggerLabel}
         aria-expanded={isOpen}
         aria-controls={options.length > 0 ? menuId : undefined}
-        onClick={() => updateOpen(!isOpen)}
+        onClick={onMainClick ?? (() => updateOpen(!isOpen))}
         style={triggerStyle}
       >
         {showTriggerText ? triggerLabel : null}
@@ -190,6 +237,7 @@ export default function MenuButton({
                     aria-label={option.ariaLabel}
                     showHoverLabel={option.showHoverLabel ?? false}
                     hoverLabel={option.hoverLabel ?? ""}
+                    copiedLabel={option.copiedLabel ?? ""}
                     onClick={() => handleSelect(option, index)}
                   >
                     {showOptionText ? option.label : null}
@@ -201,5 +249,13 @@ export default function MenuButton({
         )}
       </AnimatePresence>
     </div>
+  );
+
+  if (!viewTransitionName) return content;
+
+  return (
+    <ViewTransition name={viewTransitionName} share="vt-menu" default="none">
+      {content}
+    </ViewTransition>
   );
 }

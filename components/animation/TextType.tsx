@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ElementType } from "react";
+import { useEffect, useRef, useState, type ElementType } from "react";
 
 interface TextTypeProps {
   text: string[];
@@ -13,6 +13,10 @@ interface TextTypeProps {
   loop?: boolean;
   showCursor?: boolean;
   cursorCharacter?: string;
+  /** Bila false, pengetikan dijeda (mis. sebelum fase intro "role"). */
+  active?: boolean;
+  /** Dipanggil sekali saat frasa PERTAMA selesai diketik penuh. */
+  onFirstComplete?: () => void;
 }
 
 export default function TextType({
@@ -26,13 +30,17 @@ export default function TextType({
   loop = true,
   showCursor = true,
   cursorCharacter = "|",
+  active = true,
+  onFirstComplete,
 }: TextTypeProps) {
   const [displayedText, setDisplayedText] = useState("");
   const [textIndex, setTextIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const firstCompleteRef = useRef(false);
+
   useEffect(() => {
-    if (!text.length) return;
+    if (!active || !text.length) return;
 
     const currentText = text[textIndex % text.length];
     let delay = typingSpeed;
@@ -40,6 +48,11 @@ export default function TextType({
 
     if (!isDeleting && displayedText === currentText) {
       if (!loop && textIndex === text.length - 1) return;
+
+      if (!firstCompleteRef.current && textIndex === 0) {
+        firstCompleteRef.current = true;
+        onFirstComplete?.();
+      }
 
       delay = pauseDuration;
       nextDeleting = true;
@@ -78,6 +91,8 @@ export default function TextType({
     pauseDuration,
     initialDelay,
     loop,
+    active,
+    onFirstComplete,
   ]);
 
   return (

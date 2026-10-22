@@ -4,6 +4,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ButtonHTMLAttributes,
   type CSSProperties,
@@ -11,9 +12,12 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { ButtonIcon, IconComponent } from "@/types/icon";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMagnetic } from "@/hooks/use-magnetic";
+
+// Durasi label "copied" tampil sebelum balik ke hoverLabel.
+const COPIED_LABEL_MS = 1500;
 
 type PortfolioButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -28,7 +32,9 @@ type PortfolioButtonProps = Omit<
 > & {
   children?: ReactNode;
   text?: boolean;
-  icon?: LucideIcon | boolean | "only";
+  icon?: ButtonIcon;
+  /** Posisi ikon relatif terhadap teks. Default "right". */
+  iconPosition?: "left" | "right";
   colour?: "light" | "dark";
   magnetStrength?: number;
   maxOffset?: number;
@@ -39,6 +45,9 @@ type PortfolioButtonProps = Omit<
 
   /** Teks label yang muncul di bawah tombol. */
   hoverLabel?: string;
+
+  /** Label pengganti (dengan kotak) setelah tombol diklik, mis. "copied to clipboard". */
+  copiedLabel?: string;
 
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
   onPointerEnter?: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -55,6 +64,7 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       children,
       text = true,
       icon = true,
+      iconPosition = "right",
       colour = "light",
       disabled = false,
       type = "button",
@@ -65,6 +75,7 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       magnetScale = 1.025,
       showHoverLabel = false,
       hoverLabel = "",
+      copiedLabel = "",
       onClick,
       onPointerEnter,
       onPointerMove,
@@ -80,6 +91,8 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
 
     const [isHovered, setIsHovered] = useState(false);
     const [isPressed, setIsPressed] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+    const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { ref: magnetRef, handlers: magnetHandlers } =
       useMagnetic<HTMLButtonElement>({
@@ -91,7 +104,7 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
 
     const isCustomIcon = icon !== true && icon !== false && icon !== "only";
 
-    const IconComponent = isCustomIcon ? (icon as LucideIcon) : null;
+    const CustomIcon = isCustomIcon ? (icon as IconComponent) : null;
 
     const showDefaultIcon = icon === true || icon === "only";
     const showIcon = icon !== false;
@@ -99,7 +112,10 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
     const showText = text && !isIconOnly;
 
     const shouldShowHoverLabel =
-      showHoverLabel && Boolean(hoverLabel) && isHovered && !isDisabled;
+      showHoverLabel &&
+      (isCopied ? Boolean(copiedLabel) : Boolean(hoverLabel)) &&
+      isHovered &&
+      !isDisabled;
 
     const setButtonRef = useCallback(
       (node: HTMLButtonElement | null) => {
@@ -120,6 +136,26 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       setIsHovered(false);
       setIsPressed(false);
     }, [isDisabled]);
+
+    useEffect(() => {
+      return () => {
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      };
+    }, []);
+
+    const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+      onClick?.(event);
+
+      if (!copiedLabel) return;
+
+      setIsCopied(true);
+
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(
+        () => setIsCopied(false),
+        COPIED_LABEL_MS,
+      );
+    };
 
     const handlePointerEnter = (event: PointerEvent<HTMLButtonElement>) => {
       onPointerEnter?.(event);
@@ -206,6 +242,34 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       willChange: isDisabled ? "auto" : "transform",
     };
 
+    const iconNode = showIcon ? (
+      <span className="inline-flex shrink-0 items-center justify-center text-current">
+        {CustomIcon ? (
+          <CustomIcon
+            aria-hidden="true"
+            className="block h-5 w-5 shrink-0"
+            color="currentColor"
+            strokeWidth={1.75}
+          />
+        ) : showDefaultIcon ? (
+          <svg
+            aria-hidden="true"
+            className="block h-3.5 w-3.5 shrink-0"
+            viewBox="0 0 16 16"
+            fill="none"
+          >
+            <path
+              d="M4 12L12 4M5 4H12V11"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : null}
+      </span>
+    ) : null;
+
     return (
       <span className="relative inline-flex shrink-0">
         <button
@@ -216,7 +280,7 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
           data-state={visualState}
           className={baseClasses}
           style={buttonStyle}
-          onClick={onClick}
+          onClick={handleClick}
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove}
           onPointerLeave={handlePointerLeave}
@@ -224,35 +288,11 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         >
+          {iconPosition === "left" && iconNode}
+
           {showText && children}
 
-          {showIcon && (
-            <span className="inline-flex shrink-0 items-center justify-center text-current">
-              {IconComponent ? (
-                <IconComponent
-                  aria-hidden="true"
-                  className="block h-5 w-5 shrink-0"
-                  color="currentColor"
-                  strokeWidth={1.75}
-                />
-              ) : showDefaultIcon ? (
-                <svg
-                  aria-hidden="true"
-                  className="block h-3.5 w-3.5 shrink-0"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                >
-                  <path
-                    d="M4 12L12 4M5 4H12V11"
-                    stroke="currentColor"
-                    strokeWidth="1.25"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : null}
-            </span>
-          )}
+          {iconPosition === "right" && iconNode}
         </button>
 
         <AnimatePresence>
@@ -267,9 +307,13 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
                 ease: [0.22, 1, 0.36, 1],
               }}
               aria-hidden="true"
-              className="text-foreground/60 font-regular pointer-events-none absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 text-xs whitespace-nowrap"
+              className={`font-regular pointer-events-none absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 text-xs whitespace-nowrap ${
+                isCopied
+                  ? "bg-foreground text-background border-border rounded-md border px-2 py-1 shadow-sm"
+                  : "text-foreground/60"
+              }`}
             >
-              {hoverLabel}
+              {isCopied ? copiedLabel : hoverLabel}
             </motion.span>
           )}
         </AnimatePresence>

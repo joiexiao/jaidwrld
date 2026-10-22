@@ -15,7 +15,7 @@
   --surface-2: #e9e9e7;
   --muted: #a5a5a3;
   --border: rgba(23, 23, 23, 0.1);
-  --accent: #536d69;
+  --accent: #4da046;
 }
 
 [data-theme="dark"] {
@@ -49,6 +49,22 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
+   Scrollbar: sembunyikan hanya di area portfolio (home / about / detail).
+   `data-portfolio` dipasang di app/(portfolio)/layout.tsx. Ini juga menjaga
+   lebar konten konsisten home vs about (scrollbar memunculkan pergeseran px
+   yang bikin morph identity terasa "refresh").
+--------------------------------------------------------------------------- */
+html:has([data-portfolio]),
+html:has([data-portfolio]) body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html:has([data-portfolio])::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
    View Transitions (React <ViewTransition> + browser View Transitions API).
    - `share="morph"` menambahkan class `.morph` → tuning durasi & blur morph.
    - Crossfade (project-info, gallery-view) pakai animasi default browser.
@@ -71,6 +87,72 @@ body {
 @keyframes vt-morph-blur {
   30% {
     filter: blur(3px);
+  }
+}
+
+/* Carousel ⇄ placeholder box (home ⇄ about): efek kedalaman.
+   - `.panel-suck`  : elemen lama kesedot ke dalam layar (mengecil + pudar).
+   - `.panel-emerge`: elemen baru muncul dari dalam layar (membesar + menguat).
+   Di-trigger lewat transitionTypes "to-about"/"to-home" (tanpa mengganggu
+   morph card → gallery saat ke halaman detail). */
+@keyframes vt-panel-suck {
+  to {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: blur(6px);
+  }
+}
+
+@keyframes vt-panel-emerge {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: blur(6px);
+  }
+}
+
+::view-transition-old(.panel-suck) {
+  animation: 280ms cubic-bezier(0.4, 0, 1, 1) both vt-panel-suck;
+}
+
+::view-transition-new(.panel-emerge) {
+  animation: 420ms cubic-bezier(0, 0, 0.2, 1) 90ms both vt-panel-emerge;
+}
+
+/* Koreografi slide home ⇄ About (dijalankan di level DOM, bukan lewat class
+   enter/exit View Transition — class itu tidak pernah terpasang di kombinasi
+   Next 16 + React 19 ini; lihat catatan mekanisme di hero-identity.tsx).
+   - Slide KELUAR (WAAPI) dijalankan komponen sebelum navigasi; setelah selesai
+     wrapper digeser ke luar viewport supaya pair `contact-menu` tidak terbentuk.
+   - Slide MASUK memakai keyframes ini, dipicu flag modul `nav-intent.ts`.
+     `both` menahan elemen di posisi awal selama delay 260ms (± durasi
+     crossfade root 250ms), lalu meluncur masuk. */
+@keyframes cold-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-56px);
+  }
+}
+
+@keyframes cold-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(56px);
+  }
+}
+
+.cold-in-left {
+  animation: cold-slide-left 380ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+.cold-in-right {
+  animation: cold-slide-right 380ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cold-in-left,
+  .cold-in-right {
+    animation: none;
   }
 }
 

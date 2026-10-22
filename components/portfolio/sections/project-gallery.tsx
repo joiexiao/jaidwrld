@@ -64,7 +64,17 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
     return () => context.revert();
   }, [project.slug, view]);
 
+  // Isi panel "Detail": empat kartu dengan kategori berbeda.
+  const detailSections = [
+    { title: "About project", body: project.about },
+    { title: "Challenge", body: project.challenge },
+    { title: "Solution", body: project.solution },
+    { title: "Result", body: project.result },
+  ];
+
   return (
+    // Empat kartu detail: judul di atas, teks di bawah.
+    // Ukuran & radius menyamai kartu gambar galeri (aspect-square + rounded-3xl).
     <ViewTransition
       key={view}
       name="gallery-view"
@@ -94,42 +104,16 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
           ))}
         </ul>
       ) : (
-        <div className="text-foreground w-full p-8 pb-24 sm:p-10 md:pb-10">
-          <p className="text-muted text-[10px] tracking-[0.18em] uppercase">
-            {project.category} · {project.year}
-          </p>
-
-          <h3 className="mt-3 text-2xl font-medium tracking-[-0.03em]">
-            {project.name}
-          </h3>
-
-          <p className="mt-6 text-base leading-relaxed">
-            {project.description}
-          </p>
-
-          <div className="border-border mt-8 border-t pt-6">
-            <p className="text-muted text-[10px] tracking-[0.18em] uppercase">
-              Role
-            </p>
-            <p className="mt-1 text-sm">{project.role}</p>
-          </div>
-
-          <div className="border-border mt-6 border-t pt-6">
-            <p className="text-muted text-[10px] tracking-[0.18em] uppercase">
-              Tech
-            </p>
-
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {project.tech.map((item) => (
-                <li
-                  key={item}
-                  className="border-border rounded-full border px-3 py-1 text-xs"
-                >
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="flex w-full flex-col gap-3 pt-8 pb-24 md:pb-0">
+          {detailSections.map(({ title, body }) => (
+            <article
+              key={title}
+              className="bg-foreground text-background relative flex aspect-square w-full flex-col overflow-hidden rounded-3xl p-8 sm:p-10"
+            >
+              <h3 className="text-background/60 text-xs">{title}</h3>
+              <p className="mt-4 text-base leading-relaxed">{body}</p>
+            </article>
+          ))}
         </div>
       )}
     </ViewTransition>
