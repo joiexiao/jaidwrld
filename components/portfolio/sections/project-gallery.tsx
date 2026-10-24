@@ -85,7 +85,7 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
       {view === "gallery" ? (
         <ul
           ref={galleryRef}
-          className="flex w-full flex-col gap-3 pt-8 pb-24 md:pb-0"
+          className="flex w-full flex-col gap-3 pb-24 sm:pt-0 md:pt-8 md:pb-0"
         >
           {project.images.map((src, index) => (
             <li
@@ -108,9 +108,9 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
           {detailSections.map(({ title, body }) => (
             <article
               key={title}
-              className="bg-foreground text-background relative flex aspect-square w-full flex-col overflow-hidden rounded-3xl p-8 sm:p-10"
+              className="bg-solid text-foreground relative flex aspect-square w-full flex-col overflow-hidden rounded-3xl p-8 shadow-sm sm:p-10"
             >
-              <h3 className="text-background/60 text-xs">{title}</h3>
+              <h3 className="text-foreground/60 text-xs">{title}</h3>
               <p className="mt-4 text-base leading-relaxed">{body}</p>
             </article>
           ))}

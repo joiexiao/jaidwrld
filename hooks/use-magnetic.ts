@@ -49,6 +49,12 @@ export type UseMagneticOptions = {
   maxOffset?: number;
   /** Skala saat hover. */
   magnetScale?: number;
+  /** Skala saat active/pressed. */
+  activeScale?: number;
+  /** Spring stiffness khusus untuk scale. Default STIFFNESS (190). */
+  scaleStiffness?: number;
+  /** Spring damping khusus untuk scale. Default DAMPING (21). */
+  scaleDamping?: number;
   /** Maksimum kemiringan 3D mengikuti kursor (derajat). 0 = tanpa tilt. */
   tilt?: number;
   /** Nonaktifkan magnet + reset ke posisi netral. */
@@ -74,6 +80,9 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
     magnetStrength = 0.12,
     maxOffset = 6,
     magnetScale = 1.025,
+    activeScale = 0.97,
+    scaleStiffness = STIFFNESS,
+    scaleDamping = DAMPING,
     tilt = 0,
     disabled = false,
   } = options;
@@ -94,6 +103,9 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
     magnetStrength,
     maxOffset,
     magnetScale,
+    activeScale,
+    scaleStiffness,
+    scaleDamping,
     tilt,
     disabled,
   });
@@ -163,9 +175,11 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
       position: number,
       velocity: number,
       destination: number,
+      stiffness: number,
+      damping: number,
     ) => {
       const acceleration =
-        STIFFNESS * (destination - position) - DAMPING * velocity;
+        stiffness * (destination - position) - damping * velocity;
       const nextVelocity = velocity + acceleration * step;
 
       return {
@@ -175,11 +189,17 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
     };
 
     for (let i = 0; i < steps; i++) {
-      const x = spring(current.x, current.vx, target.x);
-      const y = spring(current.y, current.vy, target.y);
-      const scale = spring(current.scale, current.vs, target.scale);
-      const rx = spring(current.rx, current.vrx, target.rx);
-      const ry = spring(current.ry, current.vry, target.ry);
+      const x = spring(current.x, current.vx, target.x, STIFFNESS, DAMPING);
+      const y = spring(current.y, current.vy, target.y, STIFFNESS, DAMPING);
+      const scale = spring(
+        current.scale,
+        current.vs,
+        target.scale,
+        optionsRef.current.scaleStiffness,
+        optionsRef.current.scaleDamping,
+      );
+      const rx = spring(current.rx, current.vrx, target.rx, STIFFNESS, DAMPING);
+      const ry = spring(current.ry, current.vry, target.ry, STIFFNESS, DAMPING);
 
       current.x = x.position;
       current.vx = x.velocity;
@@ -241,6 +261,9 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
       magnetStrength,
       maxOffset,
       magnetScale,
+      activeScale,
+      scaleStiffness,
+      scaleDamping,
       tilt,
       disabled,
     };
@@ -358,7 +381,7 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
       updateTarget(
         targetRef.current.x,
         targetRef.current.y,
-        pressedRef.current ? 1 : optionsRef.current.magnetScale,
+        pressedRef.current ? optionsRef.current.activeScale : optionsRef.current.magnetScale,
         targetRef.current.rx,
         targetRef.current.ry,
       );
@@ -380,7 +403,7 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
       const node = nodeRef.current;
       if (!node) return;
 
-      const { magnetStrength, maxOffset, magnetScale, tilt } =
+      const { magnetStrength, maxOffset, magnetScale, activeScale, tilt } =
         optionsRef.current;
 
       const rect = node.getBoundingClientRect();
@@ -405,7 +428,7 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
       updateTarget(
         x,
         y,
-        pressedRef.current ? 1 : magnetScale,
+        pressedRef.current ? activeScale : magnetScale,
         -ny * tilt,
         nx * tilt,
       );
@@ -431,7 +454,7 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(
       updateTarget(
         targetRef.current.x,
         targetRef.current.y,
-        1,
+        optionsRef.current.activeScale,
         targetRef.current.rx,
         targetRef.current.ry,
       );

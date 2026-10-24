@@ -19,6 +19,12 @@ import { useMagnetic } from "@/hooks/use-magnetic";
 // Durasi label "copied" tampil sebelum balik ke hoverLabel.
 const COPIED_LABEL_MS = 1500;
 
+// Spring scale khusus tombol: damping kritikal (~2√180) supaya scale
+// settle ±300ms tanpa overshoot, meniru easing cubic-bezier(.075,.82,.165,1)
+// pada situs referensi, sementara translate tetap pakai spring magnet normal.
+const BUTTON_SCALE_STIFFNESS = 180;
+const BUTTON_SCALE_DAMPING = 27;
+
 type PortfolioButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   | "children"
@@ -39,6 +45,8 @@ type PortfolioButtonProps = Omit<
   magnetStrength?: number;
   maxOffset?: number;
   magnetScale?: number;
+  /** Skala saat tombol ditekan (active). Default 0.97. */
+  activeScale?: number;
 
   /** Tampilkan label saat tombol di-hover. Default false. */
   showHoverLabel?: boolean;
@@ -72,7 +80,8 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       style,
       magnetStrength = 0.12,
       maxOffset = 6,
-      magnetScale = 1.025,
+      magnetScale = 1.037,
+      activeScale = 0.97,
       showHoverLabel = false,
       hoverLabel = "",
       copiedLabel = "",
@@ -100,6 +109,9 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
         magnetStrength,
         maxOffset,
         magnetScale,
+        activeScale,
+        scaleStiffness: BUTTON_SCALE_STIFFNESS,
+        scaleDamping: BUTTON_SCALE_DAMPING,
       });
 
     const isCustomIcon = icon !== true && icon !== false && icon !== "only";
@@ -222,7 +234,7 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       "text-sm font-regular",
       "select-none",
       "transition-[border-radius,background-color,color,border-color,box-shadow,opacity]",
-      "duration-500 ease-out",
+      "duration-[300ms] ease-[cubic-bezier(0.785,0.135,0.15,0.86)]",
       "focus-visible:outline-none",
       "cursor-pointer rounded-xl px-5",
       colourClasses,

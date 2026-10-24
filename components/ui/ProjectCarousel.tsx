@@ -112,7 +112,7 @@ export default function ProjectCarousel({
     <div
       className={`relative w-full overflow-visible ${className}`}
       style={{
-        height: "clamp(440px, 70vh, 700px)",
+        height: "clamp(320px, 50vh, 700px)",
         perspective: "1200px",
         overflow: "visible",
         isolation: "isolate",

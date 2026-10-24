@@ -17,11 +17,10 @@
  */
 
 // Timing constants untuk sinkronisasi transisi Home ⇄ About.
-// Satu durasi untuk tombol + panel supaya keduanya berhenti bareng (satu gesture).
-const TRANSITION_MS = 720;
-export const CAROUSEL_EXIT_DURATION = TRANSITION_MS; // Carousel slide right + fade
-export const GHOST_CARD_DURATION = TRANSITION_MS; // Ghost card slide in dari kanan
-export const BUTTON_EXIT_DURATION = TRANSITION_MS; // Tombol slide out
+const PANEL_TRANSITION_MS = 720;
+export const CAROUSEL_EXIT_DURATION = PANEL_TRANSITION_MS; // Carousel slide right + fade
+export const GHOST_CARD_DURATION = PANEL_TRANSITION_MS; // Ghost card slide in dari kanan
+export const BUTTON_EXIT_DURATION = 320; // Tombol slide out (sinkron dengan reference)
 
 // Jeda mulai panel setelah tombol mulai bergerak (ilusi "didorong").
 export const PANEL_EXIT_DELAY = 30;

@@ -190,7 +190,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
 
       <div
         ref={stageRef}
-        className="relative mx-auto grid w-full max-w-[1440px] grid-cols-1 items-stretch gap-8 sm:gap-10 md:h-full md:grid-cols-[1fr_0.95fr] md:grid-rows-1 md:gap-10 lg:gap-20"
+        className="gap- relative mx-auto grid w-full max-w-[1440px] grid-cols-1 items-stretch sm:gap-0 md:h-full md:grid-cols-[1fr_0.95fr] md:grid-rows-1 md:gap-10 lg:gap-20"
       >
         {/* Left: project information */}
         <section className="relative z-10 flex w-full flex-col items-start py-16 md:justify-center md:py-24">
@@ -235,6 +235,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
                   text
                   icon={toggleIcon}
                   iconPosition="left"
+                  colour={view === "detail" ? "dark" : "light"}
                   onClick={handleToggleView}
                 >
                   {toggleLabel}
@@ -273,7 +274,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
       {/* Mobile dock */}
       <div
         data-detail-chrome
-        className="border-border bg-background/90 fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 border-t px-4 py-3 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 px-4 py-3 md:hidden"
       >
         <PortfolioButton
           text={false}
@@ -286,6 +287,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
           text
           icon={toggleIcon}
           iconPosition="left"
+          colour={view === "detail" ? "dark" : "light"}
           onClick={handleToggleView}
         >
           {toggleLabel}

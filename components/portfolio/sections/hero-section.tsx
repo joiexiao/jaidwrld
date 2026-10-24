@@ -135,9 +135,9 @@ export default function HeroSection({ projects }: HeroSectionProps) {
         </div>
 
         {/* Main composition */}
-        <div className="relative mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-12 py-24 md:grid-cols-[1fr_0.95fr] md:gap-10 lg:gap-20">
+        <div className="relative mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-2 py-8 md:grid-cols-[1fr_0.95fr] md:gap-10 md:py-24 lg:gap-20">
           {/* Left: identity */}
-          <section className="relative z-10 flex w-full flex-col items-start">
+          <section className="relative z-10 flex w-full flex-col items-center md:items-start">
             <HeroIdentity onOpenAbout={handleOpenAbout} />
           </section>
 

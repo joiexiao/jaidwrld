@@ -42,7 +42,10 @@ const cardVariants: Variants = {
   exitRight: {
     opacity: 0,
     x: "110vw",
-    transition: { duration: CAROUSEL_EXIT_DURATION / 1000, ease: [0.45, 0, 0.55, 1] },
+    transition: {
+      duration: CAROUSEL_EXIT_DURATION / 1000,
+      ease: [0.45, 0, 0.55, 1],
+    },
   },
 };
 
@@ -88,7 +91,7 @@ export default function FeaturedWork({
 
   // Subscribe ke orchestrator untuk trigger carousel exit bersamaan dengan button
   const [orchestratedExit, setOrchestratedExit] = useState(false);
-  
+
   useEffect(() => {
     const unsubscribe = subscribeNavAnimation((phase: AnimationPhase) => {
       if (phase === "panel-exit") {
@@ -141,7 +144,10 @@ export default function FeaturedWork({
   if (!activeProject) return null;
 
   return (
-    <div ref={carouselWrapperRef} className="relative flex w-full flex-col items-center">
+    <div
+      ref={carouselWrapperRef}
+      className="relative flex w-full flex-col items-center"
+    >
       <div className="relative w-full">
         <motion.div
           className="relative z-10 w-full"
@@ -149,15 +155,15 @@ export default function FeaturedWork({
             !showCarousel
               ? { opacity: 1, x: 0 } // Langsung di posisi pendaratan jika dari About
               : active
-              ? "hidden"
-              : false
+                ? "hidden"
+                : false
           }
           animate={
-            (aboutExit || orchestratedExit)
+            aboutExit || orchestratedExit
               ? "exitRight"
               : isCard
-              ? "visible"
-              : "hidden"
+                ? "visible"
+                : "hidden"
           }
           variants={cardVariants}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -186,7 +192,13 @@ export default function FeaturedWork({
         <motion.div
           className="absolute top-1/2 right-0 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex"
           initial={active ? "hidden" : false}
-          animate={(aboutExit || orchestratedExit) ? "hidden" : isCard ? "visible" : "hidden"}
+          animate={
+            aboutExit || orchestratedExit
+              ? "hidden"
+              : isCard
+                ? "visible"
+                : "hidden"
+          }
           variants={dotsGroupVariants}
         >
           {projects.map((project, index) => (
@@ -210,9 +222,15 @@ export default function FeaturedWork({
       {/* Dots mobile */}
       {projects.length > 1 && (
         <motion.div
-          className="mt-8 flex items-center gap-3 md:hidden"
+          className="absolute top-1/2 right-0 flex -translate-y-1/2 flex-col items-center gap-3 md:hidden"
           initial={active ? "hidden" : false}
-          animate={(aboutExit || orchestratedExit) ? "hidden" : isCard ? "visible" : "hidden"}
+          animate={
+            aboutExit || orchestratedExit
+              ? "hidden"
+              : isCard
+                ? "visible"
+                : "hidden"
+          }
           variants={dotsGroupVariants}
         >
           {projects.map((project, index) => (

@@ -5,8 +5,7 @@
    (light|dark|system) disimpan di localStorage oleh hooks/use-theme.ts. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-:root,
-[data-theme="light"] {
+:root {
   color-scheme: light;
 
   --background: #ffffff;
@@ -16,6 +15,8 @@
   --muted: #a5a5a3;
   --border: rgba(23, 23, 23, 0.1);
   --accent: #4da046;
+
+  --solid: #FEFEFE;
 }
 
 [data-theme="dark"] {
@@ -27,7 +28,9 @@
   --surface-2: #1f1f1f;
   --muted: #8a8a86;
   --border: rgba(237, 237, 237, 0.12);
-  --accent: #d8ff62;
+  --accent: #4da046;
+
+  --solid: #101010;
 }
 
 @theme inline {
@@ -38,6 +41,8 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-accent: var(--accent);
+    --color-solid: var(--solid);
+
   --font-sans: var(--font-rubik);
   --font-mono: var(--font-geist-mono);
 }
@@ -46,6 +51,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-rubik), sans-serif;
+  overscroll-behavior-y: none;
 }
 
 /* ---------------------------------------------------------------------------
@@ -119,14 +125,15 @@ html:has([data-portfolio])::-webkit-scrollbar {
   animation: 420ms cubic-bezier(0, 0, 0.2, 1) 90ms both vt-panel-emerge;
 }
 
-/* Koreografi slide home ⇄ About (dijalankan di level DOM, bukan lewat class
-   enter/exit View Transition — class itu tidak pernah terpasang di kombinasi
-   Next 16 + React 19 ini; lihat catatan mekanisme di hero-identity.tsx).
+/* Koreografi slide home ⇄ About untuk TOMBOL (dijalankan di level DOM, bukan
+   lewat class enter/exit View Transition — class itu tidak pernah terpasang di
+   kombinasi Next 16 + React 19 ini; lihat catatan mekanisme di
+   hero-identity.tsx).
    - Slide KELUAR (WAAPI) dijalankan komponen sebelum navigasi; setelah selesai
      wrapper digeser ke luar viewport supaya pair `contact-menu` tidak terbentuk.
    - Slide MASUK memakai keyframes ini, dipicu flag modul `nav-intent.ts`.
-     `both` menahan elemen di posisi awal selama delay 260ms (± durasi
-     crossfade root 250ms), lalu meluncur masuk. */
+   Durasi/easing mengikuti referensi:
+     actions-in-left 360ms, menu-in-right 420ms, menu-out-right 320ms. */
 @keyframes cold-slide-left {
   from {
     opacity: 0;
@@ -142,11 +149,11 @@ html:has([data-portfolio])::-webkit-scrollbar {
 }
 
 .cold-in-left {
-  animation: cold-slide-left 380ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  animation: cold-slide-left 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .cold-in-right {
-  animation: cold-slide-right 380ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  animation: cold-slide-right 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

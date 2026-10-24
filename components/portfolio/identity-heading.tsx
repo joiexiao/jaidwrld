@@ -50,8 +50,8 @@ export default function IdentityHeading() {
   return (
     <ViewTransition name="project-info" share="auto" default="none">
       <motion.div
-        className="w-full"
-        style={{ transformOrigin: "left top" }}
+        className="w-full text-center md:text-left"
+        style={{ transformOrigin: "center top" }}
         initial={active ? "hidden" : false}
         animate={headingState}
         variants={headingVariants}
@@ -74,8 +74,8 @@ export default function IdentityHeading() {
           Available for work
         </motion.div>
 
-        <h1 className="font-regular text-2xl sm:text-3xl md:text-4xl lg:text-4xl">
-          Arthur
+        <h1 className="font-regular text-2xl sm:text-3xl md:w-[125%] md:text-4xl lg:w-[140%] lg:text-4xl">
+          Mujahid Azzam Darmawan
         </h1>
 
         <TextType
