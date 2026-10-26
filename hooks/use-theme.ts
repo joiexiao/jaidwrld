@@ -6,7 +6,7 @@ export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "theme";
-const DEFAULT_THEME: Theme = "light";
+const DEFAULT_THEME: Theme = "dark";
 const THEMES = ["light", "dark", "system"] as const;
 
 const listeners = new Set<() => void>();

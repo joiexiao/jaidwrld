@@ -13,6 +13,8 @@ import Lanyard from "@/components/animation/lanyard";
 import FlipCard from "@/components/animation/Flipcard";
 import { useTheme } from "@/hooks/use-theme";
 
+import { useProjectSelection } from "@/components/portfolio/project-selection";
+
 import {
   clearTransitionContext,
   peekTransitionContext,
@@ -33,6 +35,7 @@ import type { Project } from "@/types/project";
 import type { About } from "@/content/about";
 
 type AboutSectionProps = {
+  projects: Project[];
   about: About;
 };
 
@@ -92,16 +95,17 @@ function EnterCard({
 // - Konten About scroll di dalam container.
 // - Overscroll tidak diteruskan ke halaman di belakangnya.
 // - Panel kanan Lanyard tetap sticky sepanjang scroll.
-export default function AboutSection({ about }: AboutSectionProps) {
+export default function AboutSection({ projects, about }: AboutSectionProps) {
   const router = useRouter();
+  const { activeSlug } = useProjectSelection();
   const { resolvedTheme } = useTheme();
 
   // Container scroll internal About.
   const aboutScrollRef = useRef<HTMLDivElement>(null);
 
   // Card yang akan naik dari dock saat kembali ke Home.
-  // Note: projects no longer passed, using first project from content if needed
-  const ghostProject = null;
+  const ghostProject =
+    projects.find((project) => project.slug === activeSlug) ?? projects[0];
 
   // Scroll ke atas sebelum navigasi.
   const scrollFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);

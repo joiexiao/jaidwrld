@@ -64,14 +64,48 @@ export default function IdentityHeading() {
         }}
       >
         <motion.div
-          className="text-muted mb-4 hidden items-center gap-2 text-[10px] tracking-[0.18em] uppercase md:flex"
+          className="text-muted mb-4 flex items-center justify-center gap-2 text-[10px] leading-none tracking-[0.18em] uppercase md:justify-start"
           initial={active ? "hidden" : false}
           animate={showStatus ? "visible" : "hidden"}
           variants={statusVariants}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
-          <span className="bg-accent size-2 rounded-full" />
-          Available for work
+          <span className="relative inline-flex size-1.5 shrink-0 -translate-y-[1px]">
+            {/* Outer Dot */}
+            <motion.span
+              className="bg-accent absolute inset-0 rounded-full"
+              animate={{
+                scale: [1, 1.35, 1],
+                opacity: [0.45, 0.9, 0.45],
+              }}
+              transition={{
+                duration: 2.4,
+                ease: [0.45, 0, 0.55, 1],
+                repeat: Infinity,
+                repeatType: "mirror",
+              }}
+            />
+
+            {/* Inner Dot */}
+            <motion.span
+              className="bg-accent relative size-1.5 rounded-full"
+              animate={{
+                opacity: [0.35, 1, 0.35],
+                scale: [0.85, 1, 0.85],
+              }}
+              transition={{
+                duration: 2.4,
+                ease: [0.45, 0, 0.55, 1],
+                repeat: Infinity,
+                repeatType: "mirror",
+                delay: 0.15,
+              }}
+            />
+          </span>
+
+          <span className="inline-flex items-center leading-none">
+            Available for work
+          </span>
         </motion.div>
 
         <h1 className="font-regular text-2xl sm:text-3xl md:w-[125%] md:text-4xl lg:w-[140%] lg:text-4xl">

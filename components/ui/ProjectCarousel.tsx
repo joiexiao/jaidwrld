@@ -85,12 +85,55 @@ export default function ProjectCarousel({
       }, WHEEL_LOCK_DURATION);
     };
 
+    let touchStartY = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0].clientY;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const touchY = event.touches[0].clientY;
+      const deltaY = touchStartY - touchY;
+
+      if (Math.abs(deltaY) < 15) return;
+
+      event.preventDefault();
+
+      if (wheelLockedRef.current) return;
+
+      const direction = deltaY > 0 ? 1 : -1;
+      const nextIndex =
+        (activeIndexRef.current + direction + projectCount) % projectCount;
+
+      activeIndexRef.current = nextIndex;
+      onActiveIndexChange(nextIndex);
+
+      wheelLockedRef.current = true;
+      touchStartY = touchY;
+
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+
+      wheelTimeoutRef.current = setTimeout(() => {
+        wheelLockedRef.current = false;
+      }, WHEEL_LOCK_DURATION);
+    };
+
     window.addEventListener("wheel", handleWheel, {
+      passive: false,
+    });
+    window.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    window.addEventListener("touchmove", handleTouchMove, {
       passive: false,
     });
 
     return () => {
       window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
 
       if (wheelTimeoutRef.current) {
         clearTimeout(wheelTimeoutRef.current);
@@ -116,6 +159,7 @@ export default function ProjectCarousel({
         perspective: "1200px",
         overflow: "visible",
         isolation: "isolate",
+        touchAction: "none", // Cegah scroll browser sepenuhnya di area carousel
       }}
     >
       {projects.map((project, index) => {

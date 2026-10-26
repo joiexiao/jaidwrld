@@ -1,9 +1,10 @@
 // app/(portfolio)/about/page.tsx — halaman About (route /about).
-// Fungsi: SERVER COMPONENT sebagai data boundary; ambil teks About
+// Fungsi: SERVER COMPONENT sebagai data boundary; ambil project + teks About
 //         di sini lalu turunkan sebagai props ke <AboutSection /> (client).
 
 import type { Metadata } from "next";
 import AboutSection from "@/components/portfolio/sections/about-section";
+import { getAllProjects } from "@/content/projects";
 import { about } from "@/content/about";
 
 export const metadata: Metadata = {
@@ -13,5 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  return <AboutSection about={about} />;
+  const projects = getAllProjects();
+
+  return <AboutSection projects={projects} about={about} />;
 }
