@@ -62,14 +62,18 @@ const CARD_SIZES: Record<Orientation, [number, number]> = {
   portrait: [1.6, 2.25],
   landscape: [2.25, 1.6],
 };
-const ANCHORS: Record<Anchor, number> = { left: 0.27, center: 0.5, right: 0.73 };
+const ANCHORS: Record<Anchor, number> = {
+  left: 0.27,
+  center: 0.5,
+  right: 0.73,
+};
 const THICKNESS = 0.018;
 const BEVEL = 0.007;
 const JOINTS = 4;
 const NODE_WEIGHT = 1 / 0.05;
-const MAX_STEP = 1 / 960;
+const MAX_STEP = 1 / 240;
 const ITERATIONS = 2;
-const SAMPLES = 72;
+const SAMPLES = 48;
 const FOV = 24;
 const STRAP_WIDTH = 0.36;
 const RING_RADIUS = 0.095;
@@ -228,7 +232,8 @@ const METALS: Record<Metal, MetalConfig> = {
   graphite: { color: "#4d4f55", roughness: 0.28 },
 };
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const parseColor = (value: string, fallback: number[]): number[] => {
@@ -257,7 +262,8 @@ const parseColor = (value: string, fallback: number[]): number[] => {
   }
 };
 
-const luminance = (rgb: number[]) => 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+const luminance = (rgb: number[]) =>
+  0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
 const toCss = (rgb: number[], alpha = 1) =>
   `rgba(${Math.round(rgb[0] * 255)}, ${Math.round(rgb[1] * 255)}, ${Math.round(rgb[2] * 255)}, ${alpha})`;
 
@@ -272,7 +278,14 @@ const seeded = (start: number) => {
   };
 };
 
-const traceRoundedRect = (path: THREE.Path, x: number, y: number, width: number, height: number, radius: number) => {
+const traceRoundedRect = (
+  path: THREE.Path,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) => {
   const r = Math.max(0, Math.min(radius, width / 2, height / 2));
   const k = r * 0.4477;
   path.moveTo(x + r, y);
@@ -293,7 +306,10 @@ const traceRoundedRect = (path: THREE.Path, x: number, y: number, width: number,
   path.bezierCurveTo(x, y + k, x + k, y, x + r, y);
 };
 
-const loadImage = (cache: Map<string, Promise<HTMLImageElement | null>>, url: string | null | undefined) => {
+const loadImage = (
+  cache: Map<string, Promise<HTMLImageElement | null>>,
+  url: string | null | undefined,
+) => {
   if (!url) return Promise.resolve(null);
   const cached = cache.get(url);
   if (cached) return cached;
@@ -309,7 +325,10 @@ const loadImage = (cache: Map<string, Promise<HTMLImageElement | null>>, url: st
   return promise;
 };
 
-const cardLayout = (orientation: Orientation, cornerRadius: number): CardLayout => {
+const cardLayout = (
+  orientation: Orientation,
+  cornerRadius: number,
+): CardLayout => {
   const [width, height] = CARD_SIZES[orientation] || CARD_SIZES.portrait;
   const radius = mix(
     0.03,
@@ -419,7 +438,12 @@ const buildEnvironment = (renderer: THREE.WebGLRenderer) => {
   scene.background = new THREE.Color(0.035, 0.035, 0.04);
   const geometry = new THREE.PlaneGeometry(1, 1);
   const materials: THREE.MeshBasicMaterial[] = [];
-  const panel = (intensity: number, position: [number, number, number], scale: [number, number], rotation = 0) => {
+  const panel = (
+    intensity: number,
+    position: [number, number, number],
+    scale: [number, number],
+    rotation = 0,
+  ) => {
     const material = new THREE.MeshBasicMaterial({
       color: new THREE.Color(intensity, intensity, intensity),
       side: THREE.DoubleSide,
@@ -541,7 +565,13 @@ const buildWeaveTexture = () => {
   return texture;
 };
 
-const drawFitted = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number, fit: "cover" | "contain") => {
+const drawFitted = (
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+  fit: "cover" | "contain",
+) => {
   const scale = (fit === "contain" ? Math.min : Math.max)(
     width / image.width,
     height / image.height,
@@ -551,7 +581,12 @@ const drawFitted = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, widt
   ctx.drawImage(image, (width - w) / 2, (height - h) / 2, w, h);
 };
 
-const paintFace = (canvas: HTMLCanvasElement, image: HTMLImageElement | null, color: number[], fit: "cover" | "contain") => {
+const paintFace = (
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement | null,
+  color: number[],
+  fit: "cover" | "contain",
+) => {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.fillStyle = toCss(color);
@@ -559,7 +594,11 @@ const paintFace = (canvas: HTMLCanvasElement, image: HTMLImageElement | null, co
   if (image) drawFitted(ctx, image, canvas.width, canvas.height, fit);
 };
 
-const paintStrap = (canvas: HTMLCanvasElement, image: HTMLImageElement | null, color: number[]) => {
+const paintStrap = (
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement | null,
+  color: number[],
+) => {
   const across = 192;
   const along = image
     ? Math.max(64, Math.round((image.width / image.height) * across))
@@ -611,7 +650,13 @@ const createSimulation = () => {
       inverseInertia: new THREE.Vector3(1, 1, 1),
       hang: new THREE.Vector3(),
     },
-    grab: null as { local: THREE.Vector3; rotation: THREE.Quaternion; reach: number; from: THREE.Vector3; target: THREE.Vector3 } | null,
+    grab: null as {
+      local: THREE.Vector3;
+      rotation: THREE.Quaternion;
+      reach: number;
+      from: THREE.Vector3;
+      target: THREE.Vector3;
+    } | null,
     turn: 0,
     twist: 0,
     twistRaw: 0,
@@ -632,7 +677,11 @@ const scratch = {
   r: new THREE.Quaternion(),
 };
 
-const applyInverseInertia = (body: THREE.Object3D, vector: THREE.Vector3, out: THREE.Vector3) => {
+const applyInverseInertia = (
+  body: THREE.Object3D,
+  vector: THREE.Vector3,
+  out: THREE.Vector3,
+) => {
   scratch.r.copy((body as any).quaternion).invert();
   out.copy(vector).applyQuaternion(scratch.r);
   out.set(
@@ -652,12 +701,22 @@ const rotateBody = (q: THREE.Quaternion, w: THREE.Vector3) => {
   q.normalize();
 };
 
-const bodyWeight = (body: THREE.Object3D, r: THREE.Vector3, normal: THREE.Vector3) => {
+const bodyWeight = (
+  body: THREE.Object3D,
+  r: THREE.Vector3,
+  normal: THREE.Vector3,
+) => {
   const rn = scratch.c.crossVectors(r, normal);
-  return 1 / (body as any).mass + rn.dot(applyInverseInertia(body, rn, scratch.d));
+  return (
+    1 / (body as any).mass + rn.dot(applyInverseInertia(body, rn, scratch.d))
+  );
 };
 
-const pushBody = (body: THREE.Object3D, r: THREE.Vector3, impulse: THREE.Vector3) => {
+const pushBody = (
+  body: THREE.Object3D,
+  r: THREE.Vector3,
+  impulse: THREE.Vector3,
+) => {
   (body as any).position.addScaledVector(impulse, 1 / (body as any).mass);
   rotateBody(
     (body as any).quaternion,
@@ -905,8 +964,12 @@ const Lanyard = ({
   const applyRef = useRef<(() => void) | null>(null);
 
   // Compute images based on theme if not explicitly provided
-  const computedFrontImage = frontImage || (theme === "dark" ? "/projects/front1.png" : "/projects/front2.png");
-  const computedBackImage = backImage || (theme === "dark" ? "/projects/back1.png" : "/projects/back2.png");
+  const computedFrontImage =
+    frontImage ||
+    (theme === "dark" ? "/projects/front1.webp" : "/projects/front2.webp");
+  const computedBackImage =
+    backImage ||
+    (theme === "dark" ? "/projects/back1.webp" : "/projects/back2.webp");
 
   settingsRef.current = {
     frontImage: computedFrontImage,
@@ -971,13 +1034,22 @@ const Lanyard = ({
     scene.add(keyLight, fillLight);
 
     const imageCache = new Map<string, Promise<HTMLImageElement | null>>();
-    const images = { front: null as HTMLImageElement | null, back: null as HTMLImageElement | null, strap: null as HTMLImageElement | null };
+    const images = {
+      front: null as HTMLImageElement | null,
+      back: null as HTMLImageElement | null,
+      strap: null as HTMLImageElement | null,
+    };
     const frontCanvas = document.createElement("canvas");
     const backCanvas = document.createElement("canvas");
     const strapCanvas = document.createElement("canvas");
     const frontTexture = makeCanvasTexture(frontCanvas, anisotropy);
     const backTexture = makeCanvasTexture(backCanvas, anisotropy);
     const strapTexture = makeCanvasTexture(strapCanvas, anisotropy);
+    const preloadTextures = () => {
+      renderer.initTexture(frontTexture);
+      renderer.initTexture(backTexture);
+      renderer.initTexture(strapTexture);
+    };
     strapTexture.wrapS = THREE.ClampToEdgeWrapping;
     strapTexture.wrapT = THREE.RepeatWrapping;
     const grain = buildGrainTexture();
@@ -1076,11 +1148,17 @@ const Lanyard = ({
     let raf = 0;
     let last = performance.now();
     let time = 0;
+    let shaderReady = false;
     let visible = true;
     let alive = true;
     let placed = false;
     let hovering = false;
-    let press: { x: number; y: number; time: number; point: THREE.Vector3 } | null = null;
+    let press: {
+      x: number;
+      y: number;
+      time: number;
+      point: THREE.Vector3;
+    } | null = null;
     let imageToken = 0;
     const reducedMotion =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -1100,9 +1178,16 @@ const Lanyard = ({
         backTexture.dispose();
       }
       paintFace(frontCanvas, images.front, color, s.imageFit ?? "cover");
-      paintFace(backCanvas, images.back || images.front, color, s.imageFit ?? "cover");
+      paintFace(
+        backCanvas,
+        images.back || images.front,
+        color,
+        s.imageFit ?? "cover",
+      );
       frontTexture.needsUpdate = true;
       backTexture.needsUpdate = true;
+
+      preloadTextures();
       start();
     };
 
@@ -1117,6 +1202,8 @@ const Lanyard = ({
       weave.repeat.set(2, 2 * tileRatio);
       strapTexture.dispose();
       strapTexture.needsUpdate = true;
+
+      preloadTextures();
       start();
     };
 
@@ -1152,13 +1239,15 @@ const Lanyard = ({
         .transformDirection(camera.matrixWorldInverse);
       // Full-screen canvas: offset anchor to right panel (center of right half)
       const rightPanelOffset = viewWidth * 0.25;
-      const anchorX = ((ANCHORS[s.anchor as Anchor] ?? 0.5) - 0.5) * viewWidth + rightPanelOffset;
+      const anchorX =
+        ((ANCHORS[s.anchor as Anchor] ?? 0.5) - 0.5) * viewWidth +
+        rightPanelOffset;
       const strapLengthNorm = clamp(s.strapLength ?? 0.5, 0, 1);
       // Push anchor higher when strapLength increases - max at top of viewport
-      const anchorY = viewHeight / 2 + mix(0.2, viewHeight * 0.48, strapLengthNorm);
+      const anchorY =
+        viewHeight / 2 + mix(0.2, viewHeight * 0.48, strapLengthNorm);
       const cardTop =
-        viewHeight / 2 -
-        viewHeight * mix(0.12, 0.42, strapLengthNorm);
+        viewHeight / 2 - viewHeight * mix(0.12, 0.42, strapLengthNorm);
       const hangTop = cardTop + (layout.hangY - layout.height / 2);
       sim.anchor.set(anchorX, anchorY, 0);
       configureSimulation(sim, layout, anchorY - hangTop);
@@ -1291,8 +1380,12 @@ const Lanyard = ({
         curve.getPointAt(i / (SAMPLES - 1), points[i]);
       const length = curve.getLength();
       const held = 1 - mouth.distanceTo(tuck) / Math.max(length, 0.001);
-      const position = bandGeometry.getAttribute("position") as THREE.BufferAttribute;
-      const normal = bandGeometry.getAttribute("normal") as THREE.BufferAttribute;
+      const position = bandGeometry.getAttribute(
+        "position",
+      ) as THREE.BufferAttribute;
+      const normal = bandGeometry.getAttribute(
+        "normal",
+      ) as THREE.BufferAttribute;
       const uv = bandGeometry.getAttribute("uv") as THREE.BufferAttribute;
       const columns = BAND_COLUMNS.length;
       const restLength = sim.rest * JOINTS;
@@ -1367,25 +1460,26 @@ const Lanyard = ({
 
     const physics = () => {
       const s = settingsRef.current;
-      if (!s) return {
-        gravity: 40,
-        hold: 40,
-        stiffness: 40 * 10 * JOINTS,
-        spring: 40 * 0.25 * JOINTS,
-        bandDamping: 40 * 0.2 * JOINTS,
-        linearDrag: 0.25,
-        angularDrag: 0.5,
-        air: 0.15,
-        broadside: 0.5,
-        spinAir: 0.03,
-        nodeDrag: 2,
-        nodeAir: 0.2,
-        twist: 30,
-        twistDamping: 3,
-        grip: 40,
-        gripDamping: 6,
-        breeze: 0,
-      };
+      if (!s)
+        return {
+          gravity: 40,
+          hold: 40,
+          stiffness: 40 * 10 * JOINTS,
+          spring: 40 * 0.25 * JOINTS,
+          bandDamping: 40 * 0.2 * JOINTS,
+          linearDrag: 0.25,
+          angularDrag: 0.5,
+          air: 0.15,
+          broadside: 0.5,
+          spinAir: 0.03,
+          nodeDrag: 2,
+          nodeAir: 0.2,
+          twist: 30,
+          twistDamping: 3,
+          grip: 40,
+          gripDamping: 6,
+          breeze: 0,
+        };
       const gravity = 40 * clamp(s.gravity ?? 1, 0, 3);
       const weight = Math.max(gravity, 20);
       const springy = clamp(s.elasticity ?? 0.5, 0, 1);
@@ -1437,7 +1531,8 @@ const Lanyard = ({
     };
 
     const start = () => {
-      if (raf || !visible || !alive) return;
+      if (raf || !visible || !alive || !shaderReady) return;
+
       sim.calm = 0;
       last = performance.now();
       raf = requestAnimationFrame(tick);
@@ -1547,8 +1642,7 @@ const Lanyard = ({
 
     const onTouchStart = (event: TouchEvent) => {
       const s = settingsRef.current;
-      if (!s || !s.interactive || event.touches.length !== 1)
-        return;
+      if (!s || !s.interactive || event.touches.length !== 1) return;
       toPointer(event.touches[0]);
       if (pickCard()) {
         event.preventDefault();
@@ -1566,10 +1660,11 @@ const Lanyard = ({
     const resize = () => {
       view.width = Math.max(1, container.clientWidth);
       view.height = Math.max(1, container.clientHeight);
+
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(view.width, view.height, false);
+
       apply();
-      render();
     };
 
     const resizeObserver = new ResizeObserver(resize);
@@ -1586,6 +1681,29 @@ const Lanyard = ({
 
     applyRef.current = apply;
     resize();
+
+    // Compile shader before the first visible render.
+    renderer
+      .compileAsync(scene, camera)
+      .then(() => {
+        if (!alive) return;
+
+        shaderReady = true;
+
+        // Render the prepared scene and start the animation.
+        render();
+        start();
+      })
+      .catch((error) => {
+        console.error("Lanyard shader compilation failed:", error);
+
+        if (!alive) return;
+
+        // Fallback: allow rendering even if precompilation fails.
+        shaderReady = true;
+        render();
+        start();
+      });
 
     return () => {
       alive = false;

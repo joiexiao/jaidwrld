@@ -39,18 +39,23 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
       : null;
 
     const context = gsap.context(() => {
+      // Kecualikan kartu pertama (index 0) dari animasi entrance GSAP
+      // karena kartu pertama di-handle oleh ViewTransition.
+      const otherItems = Array.from(items).slice(1);
+
       gsap.fromTo(
-        items,
+        otherItems,
         {
-          autoAlpha: 0.7,
-          y: 18,
+          autoAlpha: 0,
+          y: 48, // Jarak geser dari bawah yang lebih dalam agar pergerakannya lebih terasa
         },
         {
           autoAlpha: 1,
           y: 0,
-          duration: 0.7,
-          stagger: 0.08,
-          ease: "power2.out",
+          duration: 0.8,
+          delay: 0.45,
+          stagger: 0.1,
+          ease: "power3.out",
           scrollTrigger: {
             trigger: gallery,
             scroller: scrollContainer ?? undefined,
@@ -91,15 +96,33 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
             <li
               key={src}
               data-gallery-item
-              className="relative aspect-square w-full shrink-0 overflow-hidden rounded-3xl"
+              className="relative aspect-square w-full shrink-0 overflow-hidden rounded-[34px]"
             >
-              <Image
-                src={src}
-                alt={`${project.name} — gambar ${index + 1}`}
-                fill
-                sizes="(min-width: 1024px) 40vw, 90vw"
-                className="object-cover"
-              />
+              {index === 0 ? (
+                <ViewTransition
+                  name={`project-${project.slug}-cover`}
+                  share="morph"
+                  default="none"
+                >
+                  <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-[34px]">
+                    <Image
+                      src={src}
+                      alt={`${project.name} — gambar ${index + 1}`}
+                      fill
+                      sizes="(min-width: 1024px) 40vw, 90vw"
+                      className="object-cover"
+                    />
+                  </div>
+                </ViewTransition>
+              ) : (
+                <Image
+                  src={src}
+                  alt={`${project.name} — gambar ${index + 1}`}
+                  fill
+                  sizes="(min-width: 1024px) 40vw, 90vw"
+                  className="object-cover"
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -108,7 +131,7 @@ export default function ProjectGallery({ project, view }: ProjectGalleryProps) {
           {detailSections.map(({ title, body }) => (
             <article
               key={title}
-              className="bg-solid text-foreground relative flex aspect-square w-full flex-col overflow-hidden rounded-3xl p-8 shadow-sm sm:p-10"
+              className="bg-solid text-foreground relative flex aspect-square w-full flex-col overflow-hidden rounded-[34px] p-8 shadow-sm sm:p-10"
             >
               <h3 className="text-foreground/60 text-xs">{title}</h3>
               <p className="mt-4 text-base leading-relaxed">{body}</p>

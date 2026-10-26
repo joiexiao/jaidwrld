@@ -87,7 +87,7 @@ html:has([data-portfolio])::-webkit-scrollbar {
 }
 
 ::view-transition-image-pair(.morph) {
-  animation-name: vt-morph-blur;
+  /* animation-name: vt-morph-blur; */
 }
 
 @keyframes vt-morph-blur {

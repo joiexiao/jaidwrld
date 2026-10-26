@@ -256,18 +256,12 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
 
         {/* Right: gallery */}
         <section className="relative w-full md:h-full md:min-h-0">
-          <ViewTransition
-            name={`project-${project.slug}`}
-            share="morph"
-            default="none"
+          <div
+            ref={scrollRef}
+            className="project-gallery-scroll w-full md:h-full md:min-h-0 md:[scrollbar-width:none] md:overflow-y-auto md:overscroll-contain md:[&::-webkit-scrollbar]:hidden"
           >
-            <div
-              ref={scrollRef}
-              className="project-gallery-scroll w-full md:h-full md:min-h-0 md:[scrollbar-width:none] md:overflow-y-auto md:overscroll-contain md:[&::-webkit-scrollbar]:hidden"
-            >
-              <ProjectGallery project={project} view={view} />
-            </div>
-          </ViewTransition>
+            <ProjectGallery project={project} view={view} />
+          </div>
         </section>
       </div>
 

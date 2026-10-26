@@ -9,8 +9,10 @@ import {
   ViewTransition,
   type CSSProperties,
 } from "react";
+
 import type { ButtonIcon } from "@/types/icon";
 import { ChevronLeft } from "lucide-react";
+
 import {
   AnimatePresence,
   motion,
@@ -32,27 +34,38 @@ export type MenuOption = {
 
 type MenuButtonProps = {
   options: MenuOption[];
+
   triggerIcon?: ButtonIcon;
+
   /** Icon main button saat menu terbuka. Default ChevronLeft. */
   activeIcon?: ButtonIcon;
+
   /** Memaksa icon main button, terlepas dari status menu. */
   forceTriggerIcon?: ButtonIcon;
+
   triggerLabel?: string;
   direction?: "right" | "left";
   withText?: boolean;
   defaultOpen?: boolean;
+
   /** Mode terkontrol: bila diisi, state internal diabaikan. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+
   onSelect?: (option: MenuOption, index: number) => void;
+
   /** Override klik trigger, misalnya untuk navigasi. */
   onMainClick?: () => void;
+
   /** Tutup menu saat klik di luar area menu. Default true. */
   dismissOnOutsideClick?: boolean;
-  /** Bila diisi, Escape memanggil ini (mis. navigasi back) alih-alih menutup. */
+
+  /** Bila diisi, Escape memanggil ini alih-alih menutup. */
   onEscape?: () => void;
-  /** Nama view-transition untuk morph beda halaman (mis. "contact-menu"). */
+
+  /** Nama view-transition untuk morph beda halaman. */
   viewTransitionName?: string;
+
   className?: string;
 };
 
@@ -63,6 +76,7 @@ const groupVariants: Variants = {
       staggerDirection: -1,
     },
   },
+
   visible: {
     transition: {
       staggerChildren: 0.06,
@@ -81,6 +95,7 @@ const itemVariants: Variants = {
       ease: [0.22, 1, 0.36, 1],
     },
   }),
+
   visible: {
     opacity: 1,
     x: 0,
@@ -117,17 +132,19 @@ export default function MenuButton({
 
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+
   const reduceMotion = useReducedMotion();
 
   // Right: menu enters from the left.
   // Left: menu enters from the right.
   const slideDirection = direction === "right" ? -1 : 1;
   const slideX = reduceMotion ? 0 : slideDirection;
+
   const showTriggerText = withText && Boolean(triggerLabel);
 
   // Force a specific icon when provided.
-  // Otherwise, show activeIcon (default ChevronLeft) while active and
-  // triggerIcon while inactive.
+  // Otherwise, show activeIcon (default ChevronLeft) while active
+  // and triggerIcon while inactive.
   const activeTriggerIcon =
     forceTriggerIcon ?? (isOpen ? (activeIcon ?? ChevronLeft) : triggerIcon);
 
@@ -146,6 +163,7 @@ export default function MenuButton({
     (option: MenuOption, index: number) => {
       option.onClick?.();
       onSelect?.(option, index);
+
       // Sengaja tidak menutup menu saat opsi diklik.
     },
     [onSelect],
@@ -155,13 +173,22 @@ export default function MenuButton({
     if (!isOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+      const target = event.target;
+
+      if (!(target instanceof Element)) return;
+
+      // Jangan tutup menu ketika klik pada elemen yang dikecualikan.
+      if (target.closest("[data-menu-dismiss-ignore]")) {
+        return;
+      }
+
+      if (rootRef.current && !rootRef.current.contains(target)) {
         updateOpen(false);
       }
     };
 
-    // Escape: bila `onEscape` diisi (mis. back dari About), panggil itu;
-    // kalau tidak, perilaku default = tutup menu.
+    // Escape: bila onEscape diisi, panggil itu.
+    // Kalau tidak, perilaku default = tutup menu.
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
 
@@ -186,24 +213,80 @@ export default function MenuButton({
 
   const triggerStyle: CSSProperties = isOpen ? { borderRadius: "9999px" } : {};
 
-  const content = (
+  const triggerButton = (
+    <PortfolioButton
+      icon={activeTriggerIcon}
+      text={showTriggerText}
+      colour={isOpen ? "dark" : "light"}
+      aria-label={showTriggerText ? undefined : triggerLabel}
+      aria-expanded={isOpen}
+      aria-controls={options.length > 0 ? menuId : undefined}
+      onClick={onMainClick ?? (() => updateOpen(!isOpen))}
+      style={triggerStyle}
+    >
+      {showTriggerText ? triggerLabel : null}
+    </PortfolioButton>
+  );
+
+  /*
+   * Lebar spacer mengikuti ukuran icon-only button:
+   * 48px per option + 8px gap antar option.
+   *
+   * Spacer ikut layout root agar grup bisa tetap centered.
+   * Options sendiri menggunakan absolute positioning supaya
+   * tidak ikut mengubah layout root secara langsung.
+   */
+  const optionGap = 8;
+  const optionButtonSize = 48;
+
+  const optionsWidth =
+    options.length * optionButtonSize +
+    Math.max(0, options.length - 1) * optionGap;
+
+  const optionsSpacer = (
+    <motion.div
+      aria-hidden="true"
+      className="shrink-0"
+      initial={false}
+      animate={{
+        width: isOpen ? optionsWidth : 0,
+      }}
+      transition={{
+        type: "spring",
+        stiffness: 150,
+        damping: 20,
+        mass: 1,
+      }}
+    />
+  );
+
+  return (
     <div
       ref={rootRef}
-      className={`relative flex items-center gap-2 ${className}`}
+      className={`relative flex items-center ${
+        isOpen ? "gap-2" : "gap-0"
+      } ${className}`}
     >
-      <PortfolioButton
-        icon={activeTriggerIcon}
-        text={showTriggerText}
-        colour={isOpen ? "dark" : "light"}
-        aria-label={showTriggerText ? undefined : triggerLabel}
-        aria-expanded={isOpen}
-        aria-controls={options.length > 0 ? menuId : undefined}
-        onClick={onMainClick ?? (() => updateOpen(!isOpen))}
-        style={triggerStyle}
-      >
-        {showTriggerText ? triggerLabel : null}
-      </PortfolioButton>
+      {/* Spacer di sebelah kiri untuk direction left */}
+      {direction === "left" && optionsSpacer}
 
+      {/* Trigger button */}
+      {viewTransitionName ? (
+        <ViewTransition
+          name={viewTransitionName}
+          share="vt-menu"
+          default="none"
+        >
+          {triggerButton}
+        </ViewTransition>
+      ) : (
+        triggerButton
+      )}
+
+      {/* Spacer di sebelah kanan untuk direction right */}
+      {direction === "right" && optionsSpacer}
+
+      {/* Options — absolute agar tidak memengaruhi layout root */}
       <AnimatePresence initial={false}>
         {isOpen && options.length > 0 && (
           <motion.div
@@ -213,8 +296,8 @@ export default function MenuButton({
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className={`flex items-center gap-2 ${
-              direction === "left" ? "order-first" : ""
+            className={`absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-2 ${
+              direction === "right" ? "left-14" : "left-0"
             }`}
           >
             {options.map((option, index) => {
@@ -249,13 +332,5 @@ export default function MenuButton({
         )}
       </AnimatePresence>
     </div>
-  );
-
-  if (!viewTransitionName) return content;
-
-  return (
-    <ViewTransition name={viewTransitionName} share="vt-menu" default="none">
-      {content}
-    </ViewTransition>
   );
 }

@@ -137,9 +137,9 @@ export default function PortfolioCard({
       })}
 
       {/* Front card — gambar utama (images[0]); klik = trigger expand.
-          Dibungkus View Transition: morph card ini ⇄ panel galeri di detail. */}
+          Dibungkus View Transition: morph card ini ⇄ gambar pertama galeri. */}
       <ViewTransition
-        name={`project-${project.slug}`}
+        name={`project-${project.slug}-cover`}
         share="morph"
         default="none"
       >

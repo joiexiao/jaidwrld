@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion, type Variants } from "framer-motion";
+import { LayoutGroup, motion, type Variants } from "framer-motion";
 import { MailPen, UserRoundSearch, X } from "lucide-react";
 
 import PortfolioButton from "@/components/ui/PortfolioButton";
@@ -13,14 +13,11 @@ import IdentityHeading from "@/components/portfolio/identity-heading";
 import { isPhaseAtLeast, useIntro } from "@/components/portfolio/intro";
 
 import {
-  clearNavIntent,
-  peekNavIntent,
-  setNavIntent,
+  clearTransitionContext,
+  peekTransitionContext,
   BUTTON_EXIT_DURATION,
-  CAROUSEL_EXIT_DURATION,
-  subscribeNavAnimation,
   orchestrateExitToAbout,
-  type AnimationPhase,
+  type ExitAnimation,
 } from "@/components/portfolio/nav-intent";
 
 type HeroIdentityProps = {
@@ -31,18 +28,30 @@ type HeroIdentityProps = {
   showActions?: boolean;
 };
 
-// Gaya muncul tombol mengikuti menu-button: fade + slide dari kiri + stagger.
+// Gaya muncul tombol: fade + slide dari kiri + stagger.
 const groupVariants: Variants = {
   hidden: {
-    transition: { staggerChildren: 0.08, staggerDirection: -1 },
+    transition: {
+      staggerChildren: 0.08,
+      staggerDirection: -1,
+    },
   },
+
   visible: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0,
+    },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, x: -24, scale: 0.92 },
+  hidden: {
+    opacity: 0,
+    x: -24,
+    scale: 0.92,
+  },
+
   visible: {
     opacity: 1,
     x: 0,
@@ -54,21 +63,28 @@ const itemVariants: Variants = {
   },
 };
 
-// Durasi slide keluar kedua tombol sebelum navigasi.
-const ACTIONS_OUT_MS = BUTTON_EXIT_DURATION;
+const coldReturnItemVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    x: 0,
+    scale: 1,
+  },
 
-// Transition layout untuk perpindahan posisi button (hanya aktif di mobile).
-const openLayoutTransition = {
-  type: "spring" as const,
-  stiffness: 300,
-  damping: 28,
-  mass: 1,
+  visible: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: {
+      duration: 0,
+    },
+  },
 };
 
-const closeLayoutTransition = {
+// Spring untuk perpindahan layout khusus mobile.
+const layoutTransition = {
   type: "spring" as const,
-  stiffness: 260,
-  damping: 32,
+  stiffness: 150,
+  damping: 20,
   mass: 1,
 };
 
@@ -85,10 +101,17 @@ export default function HeroIdentity({
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
     checkMobile();
+
     window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
   }, []);
 
   // Koreografi slide home ⇄ About untuk kedua tombol panel kiri.
@@ -96,7 +119,9 @@ export default function HeroIdentity({
     "idle" | "exiting" | "dismissed"
   >("idle");
 
-  const [coldReturn] = useState(() => peekNavIntent() === "home-cold");
+  const [coldReturn] = useState(
+    () => peekTransitionContext()?.intent === "home-cold",
+  );
 
   const actionsRef = useRef<HTMLDivElement>(null);
 
@@ -108,84 +133,92 @@ export default function HeroIdentity({
 
   // Intent sekali pakai.
   useEffect(() => {
-    clearNavIntent();
+    clearTransitionContext();
   }, []);
 
-  // Jalur dingin: tandai dulu supaya menu About meluncur masuk.
+  /**
+   * Navigasi dilakukan setelah coordinator menyelesaikan exit animation.
+   * State dismissed diset sebelum route navigation.
+   */
   const navigateCold = useCallback(() => {
-    setNavIntent("about-cold");
+    setActionsPhase("dismissed");
     onOpenAbout();
   }, [onOpenAbout]);
 
-  // Subscribe ke animation phase untuk menjalankan WAAPI saat button-exit.
-  useEffect(() => {
-    const unsubscribe = subscribeNavAnimation((phase: AnimationPhase) => {
-      if (phase === "button-exit") {
-        const node = actionsRef.current;
-
-        if (!node) return;
-
-        const out = node.animate(
-          [
-            { opacity: 1, transform: "translateX(0px)" },
-            { opacity: 0, transform: "translateX(-56px)" },
-          ],
-          {
-            duration: BUTTON_EXIT_DURATION,
-            easing: "cubic-bezier(0.45, 0, 0.55, 1)",
-            fill: "forwards",
-          },
-        );
-
-        out.finished.then(
-          () => setActionsPhase("dismissed"),
-          () => {},
-        );
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
   const handleAboutClick = useCallback(() => {
-    if (navStartedRef.current || actionsPhase !== "idle") return;
+    /**
+     * Abaikan klik kedua ketika transisi sudah dimulai.
+     */
+    if (navStartedRef.current || actionsPhase !== "idle") {
+      return;
+    }
 
-    // Menu terbuka saat interaksi dimulai.
-    const wasMenuOpen = menuOpen || menuWasOpenRef.current;
-
+    // Reset snapshot menu setelah dipakai untuk deteksi state awal.
     menuWasOpenRef.current = false;
 
-    if (wasMenuOpen) {
-      navStartedRef.current = true;
-      setActionsPhase("exiting");
+    const node = actionsRef.current;
 
-      orchestrateExitToAbout(() => {
-        setActionsPhase("dismissed");
-        navigateCold();
-      });
+    /**
+     * Exit animation didaftarkan sebagai ExitAnimation.
+     *
+     * Jangan membuat Animation instance di luar coordinator.
+     * Coordinator akan memanggil run(), lalu menunggu animation.finished.
+     */
+    const exitAnimations: ExitAnimation[] = node
+      ? [
+          {
+            name: "button-exit",
 
-      return;
-    }
+            run: () => {
+              const currentNode = actionsRef.current;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+              if (!currentNode) {
+                return null;
+              }
 
-    if (reduceMotion) {
-      setActionsPhase("dismissed");
-      navigateCold();
-      return;
-    }
+              return currentNode.animate(
+                [
+                  {
+                    opacity: 1,
+                    transform: "translateX(0px)",
+                  },
+                  {
+                    opacity: 0,
+                    transform: "translateX(-56px)",
+                  },
+                ],
+                {
+                  duration: BUTTON_EXIT_DURATION,
+                  easing: "cubic-bezier(0.45, 0, 0.55, 1)",
+                  fill: "forwards",
+                },
+              );
+            },
+          },
+        ]
+      : [];
 
-    // Jalur dingin: trigger orchestrator untuk sinkronisasi animasi.
     navStartedRef.current = true;
     setActionsPhase("exiting");
 
+    /**
+     * Satu entry point ke navigation orchestrator untuk semua skenario
+     * (About click saat menu tertutup / menu terbuka).
+     *
+     * Wrapper actionsRef membungkus seluruh grup actions (About button +
+     * menu options), sehingga jalur ini meliputi:
+     * - Menu tertutup -> exit animation hanya memproses About button.
+     * - Menu terbuka  -> menu options ikut ter-exit bersama wrapper,
+     *   lalu About button melanjutkan transisi menuju state About.
+     *
+     * Orchestrator menunggu completion seluruh registered exit animation
+     * sebelum memanggil onNavigate, memenuhi prinsip exit-before-removal
+     * dan mencegah animasi duplikat pada elemen yang sama.
+     */
     orchestrateExitToAbout(() => {
-      setActionsPhase("dismissed");
       navigateCold();
-    });
-  }, [actionsPhase, menuOpen, navigateCold]);
+    }, exitAnimations);
+  }, [actionsPhase, navigateCold]);
 
   return (
     <div className="relative flex w-full flex-col items-center text-center md:items-start md:text-left">
@@ -212,64 +245,56 @@ export default function HeroIdentity({
                   : undefined
           }
         >
-          {/* Button group dengan layout animation */}
-          <motion.div
-            ref={actionsRef}
-            layout={isMobile ? "position" : false}
-            layoutDependency={menuOpen}
-            className="mt-0 flex items-center gap-2 md:mt-12"
-            initial={active ? "hidden" : false}
-            animate={showButtons ? "visible" : "hidden"}
-            variants={groupVariants}
-            transition={{
-              layout: menuOpen ? openLayoutTransition : closeLayoutTransition,
-            }}
-          >
-            {/* Icon only — buka halaman About */}
+          <LayoutGroup id="hero-identity-actions">
+            {/* Parent menangani perpindahan layout grup di mobile */}
             <motion.div
+              ref={actionsRef}
               layout={isMobile ? "position" : false}
-              layoutDependency={menuOpen}
               transition={{
-                layout: menuOpen ? openLayoutTransition : closeLayoutTransition,
+                layout: layoutTransition,
               }}
-              variants={itemVariants}
-              onPointerDownCapture={() => {
-                menuWasOpenRef.current = menuOpen;
-              }}
+              className="mt-0 flex items-center gap-2 md:mt-12"
+              initial={active ? "hidden" : false}
+              animate={showButtons ? "visible" : "hidden"}
+              variants={groupVariants}
             >
-              <PortfolioButton
-                text={false}
-                icon={UserRoundSearch}
-                aria-label="About"
-                onClick={handleAboutClick}
-              />
-            </motion.div>
+              {/* Icon only — buka halaman About */}
+              <motion.div
+                data-menu-dismiss-ignore
+                variants={coldReturn ? coldReturnItemVariants : itemVariants}
+                onPointerDownCapture={() => {
+                  menuWasOpenRef.current = menuOpen;
+                }}
+              >
+                <PortfolioButton
+                  text={false}
+                  icon={UserRoundSearch}
+                  aria-label="About"
+                  onClick={handleAboutClick}
+                />
+              </motion.div>
 
-            {/* Contact MenuButton */}
-            <motion.div
-              layout={isMobile ? "position" : false}
-              layoutDependency={menuOpen}
-              transition={{
-                layout: menuOpen ? openLayoutTransition : closeLayoutTransition,
-              }}
-              variants={itemVariants}
-              onAnimationComplete={(definition) => {
-                if (definition === "visible") {
-                  advance("chrome");
-                }
-              }}
-            >
-              <MenuButton
-                triggerIcon={MailPen}
-                activeIcon={X}
-                triggerLabel="Contact"
-                options={contactOptions}
-                open={menuOpen}
-                onOpenChange={setMenuOpen}
-                viewTransitionName="contact-menu"
-              />
+              {/* Contact MenuButton */}
+              <motion.div
+                variants={coldReturn ? coldReturnItemVariants : itemVariants}
+                onAnimationComplete={(definition) => {
+                  if (definition === "visible") {
+                    advance("chrome");
+                  }
+                }}
+              >
+                <MenuButton
+                  triggerIcon={MailPen}
+                  activeIcon={X}
+                  triggerLabel="Contact"
+                  options={contactOptions}
+                  open={menuOpen}
+                  onOpenChange={setMenuOpen}
+                  viewTransitionName="contact-menu"
+                />
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </LayoutGroup>
         </div>
       </div>
     </div>

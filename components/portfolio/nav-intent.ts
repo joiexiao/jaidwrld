@@ -1,160 +1,341 @@
-
-/* nav-intent.ts — flag modul sekali-pakai untuk koreografi slide home ⇄ About.
+/**
+ * nav-intent.ts — Navigation Intent & Transition Coordinator
  *
- * Fungsi: memberi tahu sisi penerima navigasi supaya memainkan slide masuk
- * (menu About dari kanan / tombol hero dari kiri) pada "jalur dingin".
- *
- * Kenapa bukan class enter/exit View Transition? Hasil bisect (V1–V6):
- * di kombinasi Next 16 + React 19 ini hanya pair morph (name stabil) dan
- * crossfade root yang pernah terpasang; class enter/exit single-element tidak
- * pernah di-apply dan transitionTypes dari router tidak sampai ke
- * pendingTransitionTypes. Karena itu koreografi dijalankan di level DOM
- * (WAAPI untuk slide keluar, keyframes `cold-in-*` untuk slide masuk) dengan
- * flag modul ini sebagai penanda lintas navigasi.
- *
- * Pola aman StrictMode: set sekali tepat sebelum `router.push`, dibaca saat
- * render mount (useState initializer), lalu dibersihkan dari effect.
+ * Fungsi:
+ * 1. Navigation Context: identitas navigasi eksplisit (id, source, destination, intent).
+ * 2. Transition Coordinator: orkestrasi exit animations, completion signals, lalu navigate.
+ * 3. Phase emitter: untuk listener animasi (WAAPI exit, dll) yang perlu sinkron.
  */
-
-// Timing constants untuk sinkronisasi transisi Home ⇄ About.
-const PANEL_TRANSITION_MS = 720;
-export const CAROUSEL_EXIT_DURATION = PANEL_TRANSITION_MS; // Carousel slide right + fade
-export const GHOST_CARD_DURATION = PANEL_TRANSITION_MS; // Ghost card slide in dari kanan
-export const BUTTON_EXIT_DURATION = 320; // Tombol slide out (sinkron dengan reference)
-
-// Jeda mulai panel setelah tombol mulai bergerak (ilusi "didorong").
-export const PANEL_EXIT_DELAY = 30;
 
 export type NavIntent = "about-cold" | "home-cold";
 
-// Animation orchestrator — single source of truth untuk koordinasi transisi
-export type AnimationPhase =
-  | "idle" // Tidak ada transisi
-  | "button-exit" // Tombol mulai slide out
-  | "panel-exit" // Carousel/placeholder mulai animasi
-  | "navigating"; // Navigasi akan dieksekusi
+export type TransitionStatus =
+  | "idle"
+  | "preparing"
+  | "exiting"
+  | "navigating"
+  | "entering"
+  | "completed"
+  | "cancelled";
 
-type PhaseListener = (phase: AnimationPhase) => void;
-
-const phaseListeners = new Set<PhaseListener>();
-let currentPhase: AnimationPhase = "idle";
-
-/** Subscribe ke perubahan phase animasi. Returns cleanup function. */
-export function subscribeNavAnimation(
-  callback: PhaseListener
-): () => void {
-  phaseListeners.add(callback);
-  return () => phaseListeners.delete(callback);
+export interface NavigationContext {
+  id: string;
+  source: string;
+  destination: string;
+  intent: NavIntent;
+  status: TransitionStatus;
+  timestamp: number;
 }
 
-/** Baca phase saat ini tanpa subscribe. */
-export function getNavAnimationPhase(): AnimationPhase {
-  return currentPhase;
+let transitionContext: NavigationContext | null = null;
+
+let currentExitAnimations: Array<{
+  name: string;
+  animation: Animation | null;
+}> = [];
+
+const phaseListeners = new Set<(phase: AnimationPhase) => void>();
+
+function generateNavigationId(): string {
+  return `nav_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Emit phase baru ke semua subscriber. */
 function emitPhase(phase: AnimationPhase): void {
-  currentPhase = phase;
   phaseListeners.forEach((callback) => callback(phase));
 }
 
-/** Reset phase ke idle (dipanggil setelah navigasi selesai). */
-export function resetNavAnimation(): void {
-  currentPhase = "idle";
-  phaseListeners.forEach((callback) => callback("idle"));
+function setContextStatus(status: TransitionStatus): void {
+  if (transitionContext) {
+    transitionContext = {
+      ...transitionContext,
+      status,
+    };
+  }
 }
 
-/** Trigger koreografi animasi dari Home ke About. */
-export function orchestrateExitToAbout(
-  onNavigate: () => void
-): void {
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// ============================================================================
+// Phase Emitter
+// ============================================================================
 
-  if (reduceMotion) {
-    onNavigate();
-    return;
+export type AnimationPhase =
+  | "idle"
+  | "button-exit"
+  | "panel-exit"
+  | "navigating";
+
+export function subscribeNavAnimation(
+  callback: (phase: AnimationPhase) => void,
+): () => void {
+  phaseListeners.add(callback);
+
+  return () => {
+    phaseListeners.delete(callback);
+  };
+}
+
+export function getNavAnimationPhase(): AnimationPhase {
+  if (!transitionContext) return "idle";
+
+  switch (transitionContext.status) {
+    case "exiting":
+      return "button-exit";
+
+    case "navigating":
+      return "navigating";
+
+    default:
+      return "idle";
   }
+}
 
-  // Phase 1: Button exit
+// ============================================================================
+// Navigation Context API
+// ============================================================================
+
+export function setTransitionContext(ctx: NavigationContext): void {
+  transitionContext = ctx;
+}
+
+export function peekTransitionContext(): NavigationContext | null {
+  return transitionContext;
+}
+
+export function clearTransitionContext(): void {
+  transitionContext = null;
+  currentExitAnimations = [];
+}
+
+// ============================================================================
+// Animation Registration
+// ============================================================================
+
+export interface ExitAnimation {
+  name: string;
+  run: () => Animation | null | undefined;
+}
+
+export function registerExitAnimations(
+  animations: ExitAnimation[],
+): void {
+  currentExitAnimations = animations.map((a) => {
+    /**
+     * Runtime validation:
+     * Mencegah error jika object yang diterima tidak memiliki
+     * fungsi run yang valid.
+     */
+    if (!a || typeof a.run !== "function") {
+      console.error(
+        "[nav-intent] Invalid animation object:",
+        a?.name ?? "unknown",
+        a,
+      );
+
+      return {
+        name: a?.name ?? "unknown",
+        animation: null,
+      };
+    }
+
+    try {
+      return {
+        name: a.name,
+        animation: a.run() ?? null,
+      };
+    } catch (error) {
+      console.error(
+        `[nav-intent] Failed to start animation "${a.name}":`,
+        error,
+      );
+
+      return {
+        name: a.name,
+        animation: null,
+      };
+    }
+  });
+}
+
+export async function waitForExitAnimations(): Promise<void> {
+  if (currentExitAnimations.length === 0) return;
+
+  setContextStatus("exiting");
+
+  const promises = currentExitAnimations.map(
+    async ({ name, animation }) => {
+      if (!animation) return;
+
+      try {
+        await animation.finished;
+      } catch (error) {
+        /**
+         * Animation.finished dapat reject ketika animasi dibatalkan.
+         * Cancellation ditangani di sini agar tidak menghasilkan
+         * unhandled Promise rejection.
+         */
+        if (process.env.NODE_ENV === "development") {
+          console.debug(
+            `[nav-intent] Animation "${name}" cancelled:`,
+            error,
+          );
+        }
+      }
+    },
+  );
+
+  await Promise.all(promises);
+
+  currentExitAnimations = [];
+}
+
+// ============================================================================
+// Transition Coordinator
+// ============================================================================
+
+const PANEL_TRANSITION_MS = 720;
+
+export const CAROUSEL_EXIT_DURATION = PANEL_TRANSITION_MS;
+export const GHOST_CARD_DURATION = PANEL_TRANSITION_MS;
+
+export const BUTTON_EXIT_DURATION = 320;
+export const PANEL_EXIT_DELAY = 30;
+
+function createTransitionContext(
+  source: NavigationContext["source"],
+  destination: NavigationContext["destination"],
+  intent: NavIntent,
+): NavigationContext {
+  return {
+    id: generateNavigationId(),
+    source,
+    destination,
+    intent,
+    status: "preparing",
+    timestamp: Date.now(),
+  };
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+async function completeExitTransition(
+  onNavigate: () => void,
+  options?: {
+    emitPanelExit?: boolean;
+  },
+): Promise<void> {
   emitPhase("button-exit");
 
-  // Phase 2: Panel exit, sedikit setelah button mulai bergerak
-  setTimeout(() => {
+  if (options?.emitPanelExit) {
+    setTimeout(() => {
+      emitPhase("panel-exit");
+    }, PANEL_EXIT_DELAY);
+  } else {
     emitPhase("panel-exit");
-  }, PANEL_EXIT_DELAY);
+  }
 
-  // Phase 3: Navigate ketika carousel selesai
-  setTimeout(() => {
-    emitPhase("navigating");
-    onNavigate();
-  }, PANEL_EXIT_DELAY + CAROUSEL_EXIT_DURATION);
+  await waitForExitAnimations();
+
+  setContextStatus("navigating");
+  emitPhase("navigating");
+
+  onNavigate();
 }
 
-/** Trigger koreografi animasi dari About ke Home. */
-export function orchestrateExitToHome(
-  onNavigate: () => void
-): void {
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+export async function orchestrateExitToAbout(
+  onNavigate: () => void,
+  exitAnimations: ExitAnimation[],
+): Promise<void> {
+  setTransitionContext(
+    createTransitionContext("home", "about", "about-cold"),
+  );
 
-  if (reduceMotion) {
+  /**
+   * Reduced motion:
+   * Context tetap dibuat agar destination dapat membaca intent.
+   * Exit animation tidak dijalankan.
+   */
+  if (prefersReducedMotion()) {
+    currentExitAnimations = [];
+
+    setContextStatus("navigating");
+    emitPhase("navigating");
+
     onNavigate();
     return;
   }
 
-  // Button dan carousel mulai pada phase yang sama
-  emitPhase("button-exit");
-  emitPhase("panel-exit");
+  registerExitAnimations(exitAnimations);
 
-  // Navigate ketika ghost card selesai
-  setTimeout(() => {
-    emitPhase("navigating");
-    onNavigate();
-  }, GHOST_CARD_DURATION);
+  await completeExitTransition(onNavigate, {
+    emitPanelExit: true,
+  });
 }
+
+export async function orchestrateExitToHome(
+  onNavigate: () => void,
+  exitAnimations: ExitAnimation[],
+): Promise<void> {
+  setTransitionContext(
+    createTransitionContext("about", "home", "home-cold"),
+  );
+
+  /**
+   * Reduced motion:
+   * Context tetap dibuat agar destination dapat membaca intent.
+   * Exit animation tidak dijalankan.
+   */
+  if (prefersReducedMotion()) {
+    currentExitAnimations = [];
+
+    setContextStatus("navigating");
+    emitPhase("navigating");
+
+    onNavigate();
+    return;
+  }
+
+  registerExitAnimations(exitAnimations);
+
+  await completeExitTransition(onNavigate);
+}
+
+// ============================================================================
+// Carousel Bounds
+// ============================================================================
 
 export type CarouselBounds = {
   top: number;
   left: number;
   width: number;
   height: number;
-  centerY: number; // clientY center relative to viewport
+  centerY: number;
 };
 
-let intent: NavIntent | null = null;
 let carouselBounds: CarouselBounds | null = null;
 
-/** Set tepat sebelum `router.push` — dibaca halaman tujuan saat mount. */
-export function setNavIntent(next: NavIntent): void {
-  intent = next;
-}
-
-/** Baca tanpa menghapus (render-safe, boleh dipanggil berkali-kali). */
-export function peekNavIntent(): NavIntent | null {
-  return intent;
-}
-
-/** Bersihkan dari effect setelah dibaca (sekali pakai per navigasi). */
-export function clearNavIntent(): void {
-  intent = null;
-}
-
-/** Set carousel bounds sebelum navigasi ke About. */
-export function setCarouselBounds(
-  bounds: CarouselBounds
-): void {
+export function setCarouselBounds(bounds: CarouselBounds): void {
   carouselBounds = bounds;
 }
 
-/** Baca carousel bounds saat About mount. */
 export function peekCarouselBounds(): CarouselBounds | null {
   return carouselBounds;
 }
 
-/** Bersihkan carousel bounds setelah dibaca. */
 export function clearCarouselBounds(): void {
   carouselBounds = null;
+}
+
+// ============================================================================
+// Reset
+// ============================================================================
+
+export function resetNavAnimation(): void {
+  transitionContext = null;
+  currentExitAnimations = [];
+
+  phaseListeners.forEach((callback) => callback("idle"));
 }

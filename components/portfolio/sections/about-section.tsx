@@ -14,11 +14,11 @@ import FlipCard from "@/components/animation/Flipcard";
 import { useTheme } from "@/hooks/use-theme";
 
 import {
-  clearNavIntent,
-  peekNavIntent,
-  setNavIntent,
+  clearTransitionContext,
+  peekTransitionContext,
   peekCarouselBounds,
   clearCarouselBounds,
+  setTransitionContext,
   BUTTON_EXIT_DURATION,
   GHOST_CARD_DURATION,
   subscribeNavAnimation,
@@ -26,7 +26,6 @@ import {
   type AnimationPhase,
 } from "@/components/portfolio/nav-intent";
 
-import { useProjectSelection } from "@/components/portfolio/project-selection";
 import PortfolioCard from "@/components/ui/PortfolioCard";
 import PaperCrumple from "@/components/animation/PaperCrumple";
 
@@ -34,7 +33,6 @@ import type { Project } from "@/types/project";
 import type { About } from "@/content/about";
 
 type AboutSectionProps = {
-  projects: Project[];
   about: About;
 };
 
@@ -94,17 +92,16 @@ function EnterCard({
 // - Konten About scroll di dalam container.
 // - Overscroll tidak diteruskan ke halaman di belakangnya.
 // - Panel kanan Lanyard tetap sticky sepanjang scroll.
-export default function AboutSection({ projects, about }: AboutSectionProps) {
+export default function AboutSection({ about }: AboutSectionProps) {
   const router = useRouter();
-  const { activeSlug } = useProjectSelection();
   const { resolvedTheme } = useTheme();
 
   // Container scroll internal About.
   const aboutScrollRef = useRef<HTMLDivElement>(null);
 
   // Card yang akan naik dari dock saat kembali ke Home.
-  const ghostProject =
-    projects.find((project) => project.slug === activeSlug) ?? projects[0];
+  // Note: projects no longer passed, using first project from content if needed
+  const ghostProject = null;
 
   // Scroll ke atas sebelum navigasi.
   const scrollFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,7 +109,9 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
   const navigatingRef = useRef(false);
 
   // Koreografi slide untuk menu About.
-  const [coldEnter] = useState(() => peekNavIntent() === "about-cold");
+  const [coldEnter] = useState(
+    () => peekTransitionContext()?.intent === "about-cold",
+  );
   const [carouselBounds] = useState(() => peekCarouselBounds());
 
   const [menuPhase, setMenuPhase] = useState<"idle" | "exiting" | "dismissed">(
@@ -137,7 +136,7 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
 
   // Intent sekali pakai — bersihkan setelah dibaca.
   useEffect(() => {
-    clearNavIntent();
+    clearTransitionContext();
     clearCarouselBounds();
   }, []);
 
@@ -265,14 +264,33 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
   const navigateBack = useCallback(() => {
     if (menuPhase !== "idle" || leaving) return;
 
-    setNavIntent("home-cold");
+    const node = menuRef.current;
+    let exitAnim: Animation | undefined;
+
+    if (node) {
+      exitAnim = node.animate(
+        [
+          { opacity: 1, transform: "translateX(0px)" },
+          { opacity: 0, transform: "translateX(56px)" },
+        ],
+        {
+          duration: MENU_OUT_MS,
+          easing: "cubic-bezier(0.45, 0, 0.55, 1)",
+          fill: "forwards",
+        },
+      );
+      exitAnim.finished.then(
+        () => setMenuPhase("dismissed"),
+        () => {},
+      );
+    }
 
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
     if (reduceMotion) {
-      finishBack();
+      orchestrateExitToHome(finishBack, []);
       return;
     }
 
@@ -288,13 +306,18 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
 
     orchestrateExitToHome(() => {
       setMenuPhase("dismissed");
-    });
+    }, [
+      {
+        name: "about-menu-exit",
+        run: () => exitAnim ?? null,
+      },
+    ]);
   }, [menuPhase, leaving, ghostProject, finishBack]);
 
-  // Subscribe ke orchestrator untuk menjalankan WAAPI menu keluar.
+  // Subscribe ke orchestrator untuk menjalankan WAAPI menu keluar (jika dipicu phase eksternal).
   useEffect(() => {
     const unsubscribe = subscribeNavAnimation((phase: AnimationPhase) => {
-      if (phase === "button-exit") {
+      if (phase === "button-exit" && menuPhase === "idle") {
         const node = menuRef.current;
 
         if (!node) return;
@@ -319,7 +342,7 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [menuPhase]);
 
   // Navigasi setelah menu keluar dan card ghost sampai di posisinya.
   useEffect(() => {
@@ -472,8 +495,8 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
                         <img
                           src={
                             resolvedTheme === "dark"
-                              ? "/projects/front1-mobile.png"
-                              : "/projects/front2-mobile.png"
+                              ? "/projects/front1-mobile.webp"
+                              : "/projects/front2-mobile.webp"
                           }
                           alt="Front preview"
                           className="h-full w-full object-cover"
@@ -485,8 +508,8 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
                         <img
                           src={
                             resolvedTheme === "dark"
-                              ? "/projects/back1-mobile.png"
-                              : "/projects/back2-mobile.png"
+                              ? "/projects/back1-mobile.webp"
+                              : "/projects/back2-mobile.webp"
                           }
                           alt="Back preview"
                           className="h-full w-full object-cover"
@@ -523,12 +546,42 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
                 }}
               />
               <div className="mt-10">
-                <p className="font-regular racking-[0.18em] text-xs">
-                  Projects:
-                </p>
+                <p className="font-regular text-sm">Worked with:</p>
                 <ul className="font-regular text-muted mt-3 flex flex-col gap-1 text-xl sm:text-2xl md:text-2xl lg:text-3xl">
-                  {projects.map((project) => (
-                    <li key={project.slug}>{project.name}</li>
+                  {about.collaborations.map((collab) => (
+                    <li key={collab.slug}>
+                      {collab.href ? (
+                        <a
+                          href={collab.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="cursor-pointer transition-colors"
+                          style={
+                            collab.hoverColor
+                              ? ({
+                                  "--hover-color": collab.hoverColor,
+                                } as React.CSSProperties)
+                              : undefined
+                          }
+                          onMouseEnter={(e) => {
+                            if (collab.hoverColor) {
+                              e.currentTarget.style.color = collab.hoverColor;
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (collab.hoverColor) {
+                              e.currentTarget.style.color = "";
+                            }
+                          }}
+                        >
+                          {collab.name}
+                        </a>
+                      ) : (
+                        <span className="text-muted cursor-default select-none">
+                          {collab.name}
+                        </span>
+                      )}
+                    </li>
                   ))}
                 </ul>
               </div>
