@@ -8,6 +8,7 @@ import {
   setCarouselBounds,
   CAROUSEL_EXIT_DURATION,
   subscribeNavAnimation,
+  peekTransitionContext,
   type AnimationPhase,
 } from "@/components/portfolio/nav-intent";
 import type { Project } from "@/types/project";
@@ -16,29 +17,31 @@ type FeaturedWorkProps = {
   projects: Project[];
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
-  /** Fase menutup fan sebelum navigasi (diteruskan ke PortfolioCard). */
   closing: boolean;
-  /** Klik card → tutup fan lalu navigasi ke detail. */
   onOpen: () => void;
-  /** Prefetch route detail saat hover (morph butuh halaman siap). */
+  onCollapseComplete?: () => void;
   onPrefetch: () => void;
-  /** Card bergeser ke kanan sebelum navigasi ke About. */
   aboutExit?: boolean;
-  /** Dipanggil setelah card selesai bergeser ke kanan. */
   onAboutExit?: () => void;
-  /** Kontrol visibility carousel saat kembali dari About. */
   showCarousel?: boolean;
 };
 
-// Sinkron dengan transition fan menutup di PortfolioCard (durasi 700ms).
-const FAN_CLOSE_MS = 720;
+const FAN_CLOSE_MS = 300;
+const PROJECT_RETURN_MORPH_MS = 1000;
 
-// Intro: card naik dari bawah (fase "card"), dalam keadaan fan terbuka lalu
-// menutup smooth ke bentuk default.
+type ReturnFanPhase = "closed" | "idle";
+
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 48, x: 0 },
   visible: { opacity: 1, y: 0, x: 0 },
-  // Arah About: card bergeser ke kanan, menyingkap kertas di belakangnya.
+  aboutReturnSlideIn: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.9,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
   exitRight: {
     opacity: 0,
     x: "110vw",
@@ -49,29 +52,34 @@ const cardVariants: Variants = {
   },
 };
 
-// Dot muncul satu-per-satu setelah card selesai naik (delayChildren ≈ durasi
-// rise card). Hanya opacity yang dianimasikan agar tidak bentrok dengan class
-// transform (mis. `scale-110`) pada dot aktif.
 const dotsGroupVariants: Variants = {
   hidden: {},
-  visible: { transition: { delayChildren: 0.6, staggerChildren: 0.12 } },
+  visible: {
+    transition: {
+      delayChildren: 0.6,
+      staggerChildren: 0.12,
+    },
+  },
 };
 
 const dotVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+    transition: {
+      duration: 0.35,
+      ease: [0.22, 1, 0.36, 1],
+    },
   },
 };
 
-// Kolom kanan home (collapsed): card carousel + dots navigasi.
 export default function FeaturedWork({
   projects,
   activeIndex,
   onActiveIndexChange,
   closing,
   onOpen,
+  onCollapseComplete,
   onPrefetch,
   aboutExit = false,
   onAboutExit,
@@ -80,24 +88,82 @@ export default function FeaturedWork({
   const { phase, active, advance } = useIntro();
   const isCard = isPhaseAtLeast(phase, "card");
 
-  // Ref untuk capture carousel bounds saat navigasi ke About
+  const initialIntent = peekTransitionContext()?.intent;
+  const [coldReturn, setColdReturn] = useState(
+    () => initialIntent === "home-from-project",
+  );
+  const [aboutReturn, setAboutReturn] = useState(
+    () => initialIntent === "home-cold",
+  );
+  const [returnAnimationKey, setReturnAnimationKey] = useState(() =>
+    initialIntent === "home-from-project" || initialIntent === "home-cold"
+      ? 1
+      : 0,
+  );
+
   const carouselWrapperRef = useRef<HTMLDivElement>(null);
-
-  // Fan dibuka sebelum card naik (card masih tersembunyi) lalu ditutup setelah
-  // card sampai. Nilainya diturunkan dari fase + `fanClosed` supaya tidak ada
-  // setState di dalam effect.
   const [fanClosed, setFanClosed] = useState(false);
-  const fanOpen = active && isPhaseAtLeast(phase, "reveal") && !fanClosed;
-
-  // Subscribe ke orchestrator untuk trigger carousel exit bersamaan dengan button
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === "undefined"
+      ? true
+      : window.matchMedia("(min-width: 768px)").matches,
+  );
+  const [returnFanPhase, setReturnFanPhase] =
+    useState<ReturnFanPhase>("closed");
   const [orchestratedExit, setOrchestratedExit] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = subscribeNavAnimation((phase: AnimationPhase) => {
-      if (phase === "panel-exit") {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  // Restart timer setiap kali kembali dari project, termasuk saat Home
+  // dipulihkan dari route cache dan state coldReturn sebelumnya masih true.
+  useEffect(() => {
+    if (!coldReturn) return;
+
+    setReturnFanPhase("closed");
+    const timer = window.setTimeout(() => {
+      setReturnFanPhase("idle");
+    }, PROJECT_RETURN_MORPH_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [coldReturn, returnAnimationKey]);
+
+  const fanOpen = coldReturn
+    ? false
+    : active && isPhaseAtLeast(phase, "reveal") && !fanClosed;
+
+  // panel-exit hanya menggerakkan carousel untuk Home → About.
+  // Project → Home menggunakan shared card transition, bukan exitRight.
+  useEffect(() => {
+    const unsubscribe = subscribeNavAnimation((navPhase: AnimationPhase) => {
+      const intent = peekTransitionContext()?.intent;
+
+      if (navPhase === "panel-exit" && intent === "about-cold") {
         setOrchestratedExit(true);
+        return;
+      }
+
+      if (navPhase !== "navigating") return;
+
+      setOrchestratedExit(false);
+
+      if (intent === "home-from-project") {
+        setColdReturn(true);
+        setAboutReturn(false);
+        setReturnFanPhase("closed");
+        setReturnAnimationKey((key) => key + 1);
+      } else if (intent === "home-cold") {
+        setColdReturn(false);
+        setAboutReturn(true);
+        setReturnAnimationKey((key) => key + 1);
       }
     });
+
     return unsubscribe;
   }, []);
 
@@ -105,30 +171,36 @@ export default function FeaturedWork({
 
   useEffect(() => {
     return () => {
-      if (fanCloseTimerRef.current) {
+      if (fanCloseTimerRef.current !== null) {
         window.clearTimeout(fanCloseTimerRef.current);
       }
     };
   }, []);
 
+  const handleCardRiseStart = useCallback(() => {
+    if (fanCloseTimerRef.current !== null) {
+      window.clearTimeout(fanCloseTimerRef.current);
+      fanCloseTimerRef.current = null;
+    }
+  }, []);
+
   const handleCardRiseComplete = useCallback(() => {
-    // Card sudah di posisi: tutup fan, lalu tandai fase selesai.
     setFanClosed(true);
 
-    if (fanCloseTimerRef.current) {
+    if (fanCloseTimerRef.current !== null) {
       window.clearTimeout(fanCloseTimerRef.current);
     }
 
-    fanCloseTimerRef.current = window.setTimeout(
-      () => advance("card"),
-      FAN_CLOSE_MS,
-    );
+    fanCloseTimerRef.current = window.setTimeout(() => {
+      advance("card");
+      fanCloseTimerRef.current = null;
+    }, FAN_CLOSE_MS);
   }, [advance]);
 
-  // Capture carousel bounds saat aboutExit dimulai (sebelum card slide keluar)
   useEffect(() => {
     if (aboutExit && carouselWrapperRef.current) {
       const rect = carouselWrapperRef.current.getBoundingClientRect();
+
       setCarouselBounds({
         top: rect.top,
         left: rect.left,
@@ -140,8 +212,9 @@ export default function FeaturedWork({
   }, [aboutExit]);
 
   const activeProject = projects[activeIndex];
-
   if (!activeProject) return null;
+
+  const returnClosing = coldReturn && returnFanPhase === "closed";
 
   return (
     <div
@@ -150,46 +223,71 @@ export default function FeaturedWork({
     >
       <div className="relative w-full">
         <motion.div
+          key={returnAnimationKey}
           className="relative z-10 w-full"
           initial={
             !showCarousel
-              ? { opacity: 1, x: 0 } // Langsung di posisi pendaratan jika dari About
-              : active
-                ? "hidden"
-                : false
+              ? { opacity: 1, x: 0 }
+              : coldReturn
+                ? { opacity: 1, y: 0, x: 0 }
+                : aboutReturn
+                  ? { opacity: 1, x: "100vw" }
+                  : active
+                    ? "hidden"
+                    : false
           }
           animate={
             aboutExit || orchestratedExit
               ? "exitRight"
-              : isCard
-                ? "visible"
-                : "hidden"
+              : aboutReturn
+                ? "aboutReturnSlideIn"
+                : coldReturn
+                  ? "visible"
+                  : isCard
+                    ? "visible"
+                    : "hidden"
           }
           variants={cardVariants}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          transition={{
+            layout: {
+              duration: 1.4,
+              ease: [0.16, 1, 0.3, 1],
+            },
+          }}
           onAnimationComplete={(definition) => {
             if (definition === "exitRight") {
+              setOrchestratedExit(false);
               onAboutExit?.();
               return;
             }
-            if (definition === "visible") handleCardRiseComplete();
+
+            if (definition === "visible") {
+              handleCardRiseComplete();
+            }
+          }}
+          onAnimationStart={(definition) => {
+            if (definition === "visible" && !coldReturn) {
+              handleCardRiseStart();
+            }
           }}
         >
           <ProjectCarousel
             projects={projects}
             activeIndex={activeIndex}
             onActiveIndexChange={onActiveIndexChange}
-            closing={closing}
+            closing={closing || returnClosing}
             onOpen={onOpen}
+            onCollapseComplete={onCollapseComplete}
             onPrefetch={onPrefetch}
             previewFan={fanOpen}
+            enableLayoutId={!aboutReturn}
           />
         </motion.div>
       </div>
 
-      {/* Dots desktop — di tepi kanan kolom */}
       {projects.length > 1 && (
         <motion.div
+          key={`desktop-dots-${returnAnimationKey}`}
           className="absolute top-1/2 right-0 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex"
           initial={active ? "hidden" : false}
           animate={
@@ -219,9 +317,9 @@ export default function FeaturedWork({
         </motion.div>
       )}
 
-      {/* Dots mobile */}
       {projects.length > 1 && (
         <motion.div
+          key={`mobile-dots-${returnAnimationKey}`}
           className="absolute top-1/2 right-0 flex -translate-y-1/2 flex-col items-center gap-3 md:hidden"
           initial={active ? "hidden" : false}
           animate={

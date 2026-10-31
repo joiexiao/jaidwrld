@@ -282,6 +282,19 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
       </span>
     ) : null;
 
+    const iconKey = CustomIcon
+      ? CustomIcon.displayName || CustomIcon.name || "custom"
+      : showDefaultIcon
+        ? "arrow"
+        : String(icon);
+
+    const labelKey =
+      typeof children === "string"
+        ? children
+        : children == null
+          ? ""
+          : "custom";
+
     return (
       <span className="relative inline-flex shrink-0">
         <button
@@ -300,11 +313,50 @@ const PortfolioButton = forwardRef<HTMLButtonElement, PortfolioButtonProps>(
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         >
-          {iconPosition === "left" && iconNode}
+          {iconPosition === "left" && showIcon && (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={`${iconKey}-${colour}`}
+                initial={{ opacity: 0, scale: 0.8, rotate: -6 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, scale: 0.8, rotate: 6 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-flex shrink-0 items-center justify-center"
+              >
+                {iconNode}
+              </motion.span>
+            </AnimatePresence>
+          )}
 
-          {showText && children}
+          {showText && (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={labelKey}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-flex items-center"
+              >
+                {children}
+              </motion.span>
+            </AnimatePresence>
+          )}
 
-          {iconPosition === "right" && iconNode}
+          {iconPosition === "right" && showIcon && (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={`${iconKey}-${colour}`}
+                initial={{ opacity: 0, scale: 0.8, rotate: -6 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, scale: 0.8, rotate: 6 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-flex shrink-0 items-center justify-center"
+              >
+                {iconNode}
+              </motion.span>
+            </AnimatePresence>
+          )}
         </button>
 
         <AnimatePresence>

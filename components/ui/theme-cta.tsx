@@ -15,7 +15,7 @@ const useIsomorphicLayoutEffect =
 
 const THEMES = {
   dark: {
-    "--gn-frame": "rgba(38, 35, 46, 0.66)",
+    "--gn-frame": "rgba(38, 35, 46, 0.10)",
     "--gn-frame-edge": "rgba(255, 255, 255, 0.08)",
     "--gn-frame-highlight": "rgba(255, 255, 255, 0.07)",
     "--gn-frame-shadow":

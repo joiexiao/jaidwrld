@@ -1,11 +1,12 @@
+
 import type { Project } from "@/types/project";
 
 export const projects: Project[] = [
   {
-    slug: "sidsneaks",
+    slug: "fundsmallcapital",
     number: "01",
-    name: "SIDSNEAKS",
-    category: "Dashboard Design System",
+    name: "Fund Small Capital",
+    category: "E-learning Web based App",
     year: "2026",
     description:
       "A sneaker e-commerce admin dashboard designed to bring consistency to operational interfaces through a reusable component system.",
@@ -25,10 +26,13 @@ export const projects: Project[] = [
     ],
     theme: "bg-[#d7d9d5]",
     accent: "bg-[#252822]",
+        videos: [
+      "/projects/fsc-1-video.webm",
+      "/projects/fsc-2-video.webm",
+    ],
     images: [
-      "/projects/sidsneaks-1.webp",
-      "/projects/sidsneaks-2.webp",
-      "/projects/sidsneaks-3.webp",
+      "/projects/fsc-3.webp",
+      "/projects/fsc-4.webp",
     ],
   },
   {
@@ -55,10 +59,13 @@ export const projects: Project[] = [
     ],
     theme: "bg-[#242522]",
     accent: "bg-[#d8ff62]",
-    images: [
-      "/projects/CGF-1.webp",
-      "/projects/CGF-2.webp",
-      "/projects/CGF-3.webp",
+    videos: [
+      "/projects/cgf-1-video.webm",
+      "/projects/cgf-2-video.webm",
+      "/projects/cgf-3-video.webm",
+    ],
+        images: [
+      "/projects/cgf-4.webp",
     ],
   },
   {
@@ -85,13 +92,25 @@ export const projects: Project[] = [
     ],
     theme: "bg-[#d9e0df]",
     accent: "bg-[#536d69]",
-    images: [
-      "/projects/LEVI-1.webp",
-      "/projects/LEVI-2.webp",
-      "/projects/LEVI-3.webp",
+    videos: [
+      "/projects/levi-1-video.webm",
+      "/projects/levi-2-video.webm",
+      "/projects/levi-3-video.webm",
+    ],
+            images: [
+      "/projects/levi-4.webp",
     ],
   },
 ];
+
+// Validasi: setiap project wajib memiliki minimal satu image atau video.
+for (const project of projects) {
+  if (!(project.images?.length || project.videos?.length)) {
+    throw new Error(
+      `Project "${project.slug}" harus memiliki minimal satu image atau video.`
+    );
+  }
+}
 
 export function getAllProjects(): Project[] {
   return projects;

@@ -136,6 +136,9 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
       : window.matchMedia("(min-width: 768px)").matches,
   );
 
+  // FlipCard mobile entrance animation state.
+  const [showFlipcardEnter, setShowFlipcardEnter] = useState(false);
+
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Intent sekali pakai — bersihkan setelah dibaca.
@@ -193,6 +196,24 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
 
     return () => media.removeEventListener("change", update);
   }, []);
+
+  // FlipCard mobile entrance: trigger on mount for mobile only.
+  useEffect(() => {
+    if (isDesktop) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (reduceMotion) {
+      setShowFlipcardEnter(true);
+      return;
+    }
+
+    // Small delay to ensure render before animation starts.
+    const timer = setTimeout(() => setShowFlipcardEnter(true), 0);
+    return () => clearTimeout(timer);
+  }, [isDesktop]);
 
   useEffect(() => {
     return () => {
@@ -310,6 +331,7 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
 
     orchestrateExitToHome(() => {
       setMenuPhase("dismissed");
+      setCardLanded(true);
     }, [
       {
         name: "about-menu-exit",
@@ -447,7 +469,7 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
           <section className="relative z-30 flex w-full flex-col items-center md:z-10 md:items-start">
             {/* First screen — mobile mengikuti layout Home/Hero */}
             <div className="flex min-h-[100svh] w-full items-center md:flex-col md:items-start md:justify-center">
-              <div className="grid w-full grid-cols-1 items-center gap-2 py-8 md:block md:py-0">
+              <div className="grid w-full grid-cols-1 items-center gap-2 pt-8 pb-4 md:block md:py-0">
                 {/* Identity + menu */}
                 <div className="w-full text-center md:text-left">
                   <IdentityHeading />
@@ -492,46 +514,58 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
                 </div>
 
                 {/* Mobile: FlipCard interaktif */}
-                <div className="mt-8 flex w-full justify-center md:hidden">
-                  <FlipCard
-                    front={
-                      <div className="relative h-full w-full overflow-hidden rounded-[22px]">
-                        <img
-                          src={
-                            resolvedTheme === "dark"
-                              ? "/projects/front1-mobile.webp"
-                              : "/projects/front2-mobile.webp"
-                          }
-                          alt="Front preview"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    }
-                    back={
-                      <div className="relative h-full w-full overflow-hidden rounded-[22px]">
-                        <img
-                          src={
-                            resolvedTheme === "dark"
-                              ? "/projects/back1-mobile.webp"
-                              : "/projects/back2-mobile.webp"
-                          }
-                          alt="Back preview"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    }
-                    axis="x"
-                    width={436}
-                    height={296}
-                    radius={22}
-                    background={
-                      resolvedTheme === "dark" ? "#1f1f1f" : "#e9e9e7"
-                    }
-                    color={resolvedTheme === "dark" ? "#ededed" : "#171717"}
-                    shadow
-                    glare
-                    hoverScale={1.02}
-                  />
+                <div className="mt-4 flex w-full flex-col items-center justify-center md:hidden">
+                  <div
+                    className={[
+                      "w-full",
+                      showFlipcardEnter ? "flipcard-enter" : "opacity-0",
+                      leaving ? "flipcard-exit" : "",
+                    ].join(" ")}
+                  >
+                    <FlipCard
+                      front={
+                        <div className="relative h-full w-full overflow-hidden rounded-[22px]">
+                          <img
+                            src={
+                              resolvedTheme === "dark"
+                                ? "/projects/front1-mobile.webp"
+                                : "/projects/front2-mobile.webp"
+                            }
+                            alt="Front preview"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      }
+                      back={
+                        <div className="bg-foreground relative h-full w-full overflow-hidden rounded-[22px]">
+                          <img
+                            src={
+                              resolvedTheme === "dark"
+                                ? "/projects/back1-mobile.webp"
+                                : "/projects/back2-mobile.webp"
+                            }
+                            alt="Back preview"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      }
+                      axis="x"
+                      width={436}
+                      height={296}
+                      radius={22}
+                      background={
+                        resolvedTheme === "dark" ? "#1f1f1f" : "#e9e9e7"
+                      }
+                      color={resolvedTheme === "dark" ? "#ededed" : "#171717"}
+                      shadow
+                      glare
+                      hoverScale={1.02}
+                    />
+
+                    <p className="text-muted mt-4 text-center text-xs md:hidden">
+                      Tap the card
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -638,13 +672,14 @@ export default function AboutSection({ projects, about }: AboutSectionProps) {
                 />
               </motion.div>
 
-              {leaving && ghostProject && isDesktop && (
+              {/* Disabled EnterCard to prevent ghost card double animation */}
+              {/* {leaving && ghostProject && isDesktop && (
                 <EnterCard
                   project={ghostProject}
                   onReady={() => setCardLanded(true)}
                   carouselCenterY={carouselBounds?.centerY}
                 />
-              )}
+              )} */}
             </div>
           </section>
         </div>

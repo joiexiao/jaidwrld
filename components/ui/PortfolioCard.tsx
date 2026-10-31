@@ -1,55 +1,61 @@
 "use client";
 
-import { useState, type PointerEvent } from "react";
+import { useState, useEffect, type PointerEvent } from "react";
 import { ViewTransition } from "react";
+
 import Image from "next/image";
+import { motion } from "framer-motion";
 import type { Project } from "@/types/project";
 import { useMagnetic } from "@/hooks/use-magnetic";
 
 type PortfolioCardProps = {
   project: Project;
   className?: string;
-  /** Kekuatan tarik magnet ke kursor (rasio jarak). */
   magnetStrength?: number;
-  /** Batas maksimum pergeseran translate (px). */
   maxOffset?: number;
-  /** Skala saat hover. */
   magnetScale?: number;
-  /** Maksimum kemiringan 3D mengikuti kursor (derajat). */
   tilt?: number;
-  /** Card sedang dalam mode expand — fan ditutup & magnet dimatikan. */
   expanded?: boolean;
-  /** Fase menutup fan sebelum expand (visual "kartu dirapikan"). */
   closing?: boolean;
-  /** Dipanggil saat card diklik (trigger expand). */
+  enableLayoutId?: boolean;
   onActivate?: () => void;
-  /** Dipanggil saat pointer masuk card (untuk prefetch route detail). */
+  /** Dipanggil setelah animasi collapse selesai. */
+  onCollapseComplete?: () => void;
   onPrefetch?: () => void;
-  /** Paksa fan terbuka (dipakai animasi intro home; lepas → menutup smooth). */
   previewFan?: boolean;
 };
 
-// Konfigurasi kipas per-depth (index 0 = layer paling dekat front card).
-// Jumlah layer mengikuti panjang `project.images` (1 kartu per gambar).
+/** Konfigurasi kipas per-depth (index 0 = layer paling dekat front card). */
 const FAN_LAYERS = [
+  // Card 2
   { rotate: 3, scale: 0.97, hoverRotate: 12, hoverScale: 0.95 },
+
+  // Card 3
   { rotate: -6, scale: 0.94, hoverRotate: -24, hoverScale: 0.91 },
-  { rotate: 9, scale: 0.91, hoverRotate: 34, hoverScale: 0.88 },
+
+  // Card 4 — posisi seperti card 2, tetapi miring ke kiri
+  { rotate: -3, scale: 0.97, hoverRotate: -12, hoverScale: 0.95 },
+
+  // Card 5
   { rotate: -12, scale: 0.88, hoverRotate: -44, hoverScale: 0.85 },
+
+  // Card 6
   { rotate: 15, scale: 0.85, hoverRotate: 54, hoverScale: 0.82 },
 ];
 
-// Ukuran kartu responsif (lebar x tinggi): base 288x296, sm 312x320, lg 352x362.
-// Di-export supaya komponen lain (mis. placeholder About) bisa menyamakan ukuran persis.
+/** Ukuran kartu responsif: base 288x296, sm 312x320, lg 352x362. */
 export const CARD_SIZE =
   "h-[296px] w-[288px] sm:h-[320px] sm:w-[312px] lg:h-[362px] lg:w-[352px]";
 
-// `sizes` untuk next/image — sinkron dengan CARD_SIZE di atas.
+/** `sizes` untuk next/image — sinkron dengan CARD_SIZE di atas. */
 const IMAGE_SIZES =
   "(min-width: 1024px) 352px, (min-width: 640px) 312px, 288px";
 
-const FAN_TRANSITION =
-  "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]";
+const COVER_TRANSITION_SHARE = {
+  "project-open": "morph-open",
+  "project-close": "morph-close",
+  default: "none",
+} as const;
 
 export default function PortfolioCard({
   project,
@@ -60,17 +66,23 @@ export default function PortfolioCard({
   tilt = 7,
   expanded = false,
   closing = false,
+  enableLayoutId = true,
   onActivate,
+  onCollapseComplete,
   onPrefetch,
   previewFan = false,
 }: PortfolioCardProps) {
-  const [cover, ...backImages] = project.images;
+  const images = project.images ?? [];
+  const videos = project.videos ?? [];
 
-  // Fan di-drive state (bukan CSS group-hover) supaya bisa dipaksa menutup
-  // saat `closing`/`expanded` — memberi kontrol penuh atas animasi "rapikan".
+  const media = [
+    ...videos.map((src) => ({ src, type: "video" as const })),
+    ...images.map((src) => ({ src, type: "image" as const })),
+  ];
+
+  const [cover, ...backMedia] = media;
   const [hovered, setHovered] = useState(false);
 
-  // Magnet hover: seluruh stack tertarik ke kursor + miring 3D mengikuti posisi.
   const { ref, handlers } = useMagnetic<HTMLDivElement>({
     magnetStrength,
     maxOffset,
@@ -81,6 +93,14 @@ export default function PortfolioCard({
 
   const collapsed = expanded || closing;
   const fanOpen = (hovered || previewFan) && !collapsed;
+
+  // Tidak ada back layer yang perlu dianimasikan pada card dengan satu media.
+  // Laporkan selesai langsung agar pemanggil lama tidak menunggu fallback.
+  useEffect(() => {
+    if (closing && backMedia.length === 0) {
+      onCollapseComplete?.();
+    }
+  }, [closing, backMedia.length, onCollapseComplete]);
 
   const handlePointerEnter = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "touch") setHovered(true);
@@ -93,6 +113,47 @@ export default function PortfolioCard({
     handlers.onPointerLeave(event);
   };
 
+  const frontCard = (
+    <motion.button
+      type="button"
+      onClick={onActivate}
+      aria-label={`Buka project ${project.name}`}
+      style={{
+        transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none",
+      }}
+      className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left ${project.theme}`}
+    >
+      {cover?.type === "video" ? (
+        <video
+          src={cover.src}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-label={`${project.name} video preview`}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : cover?.type === "image" ? (
+        <Image
+          src={cover.src}
+          alt={project.name}
+          fill
+          sizes={IMAGE_SIZES}
+          className="object-cover"
+        />
+      ) : null}
+
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+      <div className="absolute inset-x-0 bottom-0 p-6">
+        <h2 className="text-xl font-medium tracking-[-0.04em] text-white">
+          {project.name}
+        </h2>
+      </div>
+    </motion.button>
+  );
+
   return (
     <div
       ref={ref}
@@ -102,77 +163,87 @@ export default function PortfolioCard({
       onPointerDown={handlers.onPointerDown}
       onPointerUp={handlers.onPointerUp}
       onPointerCancel={handlers.onPointerCancel}
-      style={{ transformOrigin: "center center", willChange: "transform" }}
+      style={{
+        transformOrigin: "center center",
+        willChange: "transform",
+      }}
       className={`relative flex w-full items-center justify-center ${className}`}
     >
-      {/* Back layers — satu kartu per gambar sisa (images[1..]) */}
-      {backImages.map((src, index) => {
+      {/* Back layers: disembunyikan dari snapshot saat shared card mulai morph. */}
+      {backMedia.map(({ src, type }, index) => {
         const fan = FAN_LAYERS[Math.min(index, FAN_LAYERS.length - 1)];
-
-        // Saat collapsed, semua layer rata di belakang front (visual 1 kartu).
         const rotate = collapsed ? 0 : fanOpen ? fan.hoverRotate : fan.rotate;
         const scale = collapsed ? 1 : fanOpen ? fan.hoverScale : fan.scale;
 
         return (
-          <div
-            key={src}
+          <motion.div
+            key={`${type}-${src}`}
             aria-hidden="true"
-            style={{
-              transform: `rotate(${rotate}deg) scale(${scale})`,
-              zIndex: 9 - index,
+            animate={{
+              rotate,
+              scale,
+              borderRadius: "34px",
             }}
-            className={`pointer-events-none absolute ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] motion-reduce:transition-none ${FAN_TRANSITION} ${project.theme}`}
+            transition={{
+              duration: 0.8,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            onAnimationComplete={() => {
+              if (
+                collapsed &&
+                index === backMedia.length - 1 &&
+                onCollapseComplete
+              ) {
+                onCollapseComplete();
+              }
+            }}
+            style={{
+              zIndex: 9 - index,
+              visibility: collapsed ? "hidden" : "visible",
+            }}
+            className={`pointer-events-none absolute ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] ${project.theme}`}
           >
-            <Image
-              src={src}
-              alt=""
-              fill
-              sizes={IMAGE_SIZES}
-              className="object-cover"
-            />
+            {type === "video" ? (
+              <video
+                src={src}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes={IMAGE_SIZES}
+                className="object-cover"
+              />
+            )}
+
             <div className="absolute inset-[8%] rounded-[26px]" />
             <div className="absolute inset-x-0 bottom-0 h-[35%] bg-gradient-to-t from-black/[0.08] to-transparent" />
-          </div>
+          </motion.div>
         );
       })}
 
-      {/* Front card — gambar utama (images[0]); klik = trigger expand.
-          Dibungkus View Transition: morph card ini ⇄ gambar pertama galeri. */}
-      <ViewTransition
-        name={`project-${project.slug}-cover`}
-        share="morph"
-        default="none"
-      >
-        <button
-          type="button"
-          onClick={onActivate}
-          aria-label={`Buka project ${project.name}`}
-          style={{
-            transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none",
-          }}
-          className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${project.theme}`}
+      {/*
+        Shared front card: carousel ⇄ first project gallery card.
+        Kedua halaman menggunakan name dan share mapping yang sama.
+      */}
+      {enableLayoutId ? (
+        <ViewTransition
+          name={`project-cover-${project.slug}`}
+          default="none"
+          share={COVER_TRANSITION_SHARE}
         >
-          {cover && (
-            <Image
-              src={cover}
-              alt={project.name}
-              fill
-              sizes={IMAGE_SIZES}
-              className="object-cover"
-            />
-          )}
-
-          {/* Legibility gradient */}
-          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-          {/* Project title */}
-          <div className="absolute inset-x-0 bottom-0 p-6">
-            <h2 className="text-xl font-medium tracking-[-0.04em] text-white">
-              {project.name}
-            </h2>
-          </div>
-        </button>
-      </ViewTransition>
+          {frontCard}
+        </ViewTransition>
+      ) : (
+        frontCard
+      )}
     </div>
   );
 }

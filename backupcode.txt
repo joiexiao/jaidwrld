@@ -1,0 +1,3171 @@
+global.css:
+@import "tailwindcss";
+
+/* Tema di-drive dari atribut `data-theme` di <html>, bukan prefers-color-scheme.
+   Nilai `data-theme` selalu hasil resolve (light|dark); preferensi user
+   (light|dark|system) disimpan di localStorage oleh hooks/use-theme.ts. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light;
+
+  --background: #ffffff;
+  --foreground: #1d1d1d;
+  --surface: #f7f7f5;
+  --surface-2: #e9e9e7;
+  --muted: #a5a5a3;
+  --border: rgba(23, 23, 23, 0.1);
+  --accent: #4da046;
+
+  --solid: #FEFEFE;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #1d1d1d;
+  --foreground: #ededed;
+  --surface: #141414;
+  --surface-2: #1f1f1f;
+  --muted: #8a8a86;
+  --border: rgba(237, 237, 237, 0.12);
+  --accent: #4da046;
+
+  --solid: #101010;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+    --color-solid: var(--solid);
+
+  --font-sans: var(--font-rubik);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-rubik), sans-serif;
+  overscroll-behavior-y: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbar: sembunyikan hanya di area portfolio (home / about / detail).
+   `data-portfolio` dipasang di app/(portfolio)/layout.tsx. Ini juga menjaga
+   lebar konten konsisten home vs about (scrollbar memunculkan pergeseran px
+   yang bikin morph identity terasa "refresh").
+--------------------------------------------------------------------------- */
+html:has([data-portfolio]),
+html:has([data-portfolio]) body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html:has([data-portfolio])::-webkit-scrollbar {
+  display: none;
+}
+
+
+
+/* Keep the rounded cover clipped throughout the shared transition. */
+::view-transition-image-pair(.morph),
+::view-transition-image-pair(.morph-open),
+::view-transition-image-pair(.morph-close) {
+  overflow: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.morph),
+  ::view-transition-group(.morph-open),
+  ::view-transition-group(.morph-close) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+
+/* Carousel ⇄ placeholder box (home ⇄ about): efek kedalaman.
+   - `.panel-suck`  : elemen lama kesedot ke dalam layar (mengecil + pudar).
+   - `.panel-emerge`: elemen baru muncul dari dalam layar (membesar + menguat).
+   Di-trigger lewat transitionTypes "to-about"/"to-home" (tanpa mengganggu
+   morph card → gallery saat ke halaman detail). */
+@keyframes vt-panel-suck {
+  to {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: blur(6px);
+  }
+}
+
+@keyframes vt-panel-emerge {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: blur(6px);
+  }
+}
+
+::view-transition-old(.panel-suck) {
+  animation: 280ms cubic-bezier(0.4, 0, 1, 1) both vt-panel-suck;
+}
+
+::view-transition-new(.panel-emerge) {
+  animation: 420ms cubic-bezier(0, 0, 0.2, 1) 90ms both vt-panel-emerge;
+}
+
+/* Koreografi slide home ⇄ About untuk TOMBOL (dijalankan di level DOM, bukan
+   lewat class enter/exit View Transition — class itu tidak pernah terpasang di
+   kombinasi Next 16 + React 19 ini; lihat catatan mekanisme di
+   hero-identity.tsx).
+   - Slide KELUAR (WAAPI) dijalankan komponen sebelum navigasi; setelah selesai
+     wrapper digeser ke luar viewport supaya pair `contact-menu` tidak terbentuk.
+   - Slide MASUK memakai keyframes ini, dipicu flag modul `nav-intent.ts`.
+   Durasi/easing mengikuti referensi:
+     actions-in-left 360ms, menu-in-right 420ms, menu-out-right 320ms. */
+@keyframes cold-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-56px);
+  }
+}
+
+@keyframes cold-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(56px);
+  }
+}
+
+.cold-in-left {
+  animation: cold-slide-left 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cold-in-right {
+  animation: cold-slide-right 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cold-in-left,
+  .cold-in-right {
+    animation: none;
+  }
+}
+
+/* FlipCard mobile animations */
+@keyframes flipcard-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes flipcard-slide-out {
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+.flipcard-enter {
+  animation: flipcard-slide-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.flipcard-exit {
+  animation: flipcard-slide-out 320ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flipcard-enter,
+  .flipcard-exit {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+
+featuredwork:
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, type Variants } from "framer-motion";
+import ProjectCarousel from "@/components/ui/ProjectCarousel";
+import { isPhaseAtLeast, useIntro } from "@/components/portfolio/intro";
+import {
+  setCarouselBounds,
+  CAROUSEL_EXIT_DURATION,
+  subscribeNavAnimation,
+  peekTransitionContext,
+  type AnimationPhase,
+} from "@/components/portfolio/nav-intent";
+import type { Project } from "@/types/project";
+
+type FeaturedWorkProps = {
+  projects: Project[];
+  activeIndex: number;
+  onActiveIndexChange: (index: number) => void;
+  /** Fase menutup fan sebelum navigasi. */
+  closing: boolean;
+  /** Klik card → tutup fan lalu navigasi ke detail. */
+  onOpen: () => void;
+  /** Dipanggil setelah animasi collapse selesai. */
+  onCollapseComplete?: () => void;
+  /** Prefetch route detail saat hover. */
+  onPrefetch: () => void;
+  /** Card bergeser ke kanan sebelum navigasi ke About. */
+  aboutExit?: boolean;
+  /** Dipanggil setelah card selesai bergeser ke kanan. */
+  onAboutExit?: () => void;
+  /** Kontrol visibility carousel saat kembali dari About. */
+  showCarousel?: boolean;
+};
+
+// Sinkron dengan transition fan menutup di PortfolioCard (durasi 300ms agar instan & responsif).
+const FAN_CLOSE_MS = 300;
+
+type ReturnFanPhase = "initial-closed" | "open" | "closing" | "idle";
+
+// Intro: card naik dari bawah, dalam keadaan fan terbuka lalu menutup smooth.
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 48, x: 0 },
+  visible: { opacity: 1, y: 0, x: 0 },
+  aboutReturnSlideIn: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.9,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+  exitRight: {
+    opacity: 0,
+    x: "110vw",
+    transition: {
+      duration: CAROUSEL_EXIT_DURATION / 1000,
+      ease: [0.45, 0, 0.55, 1],
+    },
+  },
+};
+
+// Dot muncul satu-per-satu setelah card selesai naik.
+const dotsGroupVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      delayChildren: 0.6,
+      staggerChildren: 0.12,
+    },
+  },
+};
+
+const dotVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      duration: 0.35,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
+
+export default function FeaturedWork({
+  projects,
+  activeIndex,
+  onActiveIndexChange,
+  closing,
+  onOpen,
+  onCollapseComplete,
+  onPrefetch,
+  aboutExit = false,
+  onAboutExit,
+  showCarousel = true,
+}: FeaturedWorkProps) {
+  const { phase, active, advance } = useIntro();
+  const isCard = isPhaseAtLeast(phase, "card");
+
+  // Capture carousel bounds saat navigasi ke About.
+  const carouselWrapperRef = useRef<HTMLDivElement>(null);
+
+  // State fan untuk animasi intro.
+  const [fanClosed, setFanClosed] = useState(false);
+
+  // Deteksi apakah halaman kembali dari detail project.
+  const [coldReturn] = useState(
+    () => peekTransitionContext()?.intent === "home-from-project",
+  );
+
+  // Deteksi breakpoint untuk animasi spesifik mobile.
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === "undefined"
+      ? true
+      : window.matchMedia("(min-width: 768px)").matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  // Deteksi apakah kembali dari About.
+  const [aboutReturn] = useState(
+    () => peekTransitionContext()?.intent === "home-cold",
+  );
+
+  // Urutan animasi ketika kembali dari detail.
+  const [returnFanPhase, setReturnFanPhase] = useState<"idle" | "closed">(
+    "closed",
+  );
+
+  useEffect(() => {
+    if (!coldReturn) return;
+
+    const timer = window.setTimeout(() => {
+      setReturnFanPhase("idle");
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [coldReturn]);
+
+  // Saat coldReturn, state fase mengendalikan fan secara eksplisit.
+  const fanOpen = coldReturn
+    ? false
+    : active && isPhaseAtLeast(phase, "reveal") && !fanClosed;
+
+  // Subscribe ke orchestrator untuk menyinkronkan exit dengan tombol.
+  const [orchestratedExit, setOrchestratedExit] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeNavAnimation((phase: AnimationPhase) => {
+      if (phase === "panel-exit") {
+        setOrchestratedExit(true);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const fanCloseTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (fanCloseTimerRef.current !== null) {
+        window.clearTimeout(fanCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCardRiseStart = useCallback(() => {
+    if (fanCloseTimerRef.current !== null) {
+      window.clearTimeout(fanCloseTimerRef.current);
+      fanCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const handleCardRiseComplete = useCallback(() => {
+    // Tutup fan setelah card selesai naik.
+    setFanClosed(true);
+
+    if (fanCloseTimerRef.current !== null) {
+      window.clearTimeout(fanCloseTimerRef.current);
+    }
+
+    // Tunggu fan selesai menutup sebelum intro berakhir.
+    fanCloseTimerRef.current = window.setTimeout(() => {
+      advance("card");
+      fanCloseTimerRef.current = null;
+    }, FAN_CLOSE_MS);
+  }, [advance]);
+
+  // Capture carousel bounds sebelum card bergeser keluar menuju About.
+  useEffect(() => {
+    if (aboutExit && carouselWrapperRef.current) {
+      const rect = carouselWrapperRef.current.getBoundingClientRect();
+
+      setCarouselBounds({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        centerY: rect.top + rect.height / 2,
+      });
+    }
+  }, [aboutExit]);
+
+  const activeProject = projects[activeIndex];
+
+  if (!activeProject) return null;
+
+  // Fan dipaksa menutup pada fase awal dan fase closing.
+  const returnClosing = coldReturn && returnFanPhase === "closed";
+  return (
+    <div
+      ref={carouselWrapperRef}
+      className="relative flex w-full flex-col items-center"
+    >
+      <div className="relative w-full">
+        <motion.div
+          className="relative z-10 w-full"
+          initial={
+            !showCarousel
+              ? { opacity: 1, x: 0 }
+              : coldReturn
+                ? { opacity: 1, y: 0, x: 0 }
+                : aboutReturn
+                  ? { opacity: 1, x: "100vw" }
+                  : active
+                    ? "hidden"
+                    : false
+          }
+          animate={
+            aboutExit || orchestratedExit
+              ? "exitRight"
+              : aboutReturn
+                ? "aboutReturnSlideIn"
+                : coldReturn
+                  ? "visible"
+                  : isCard
+                    ? "visible"
+                    : "hidden"
+          }
+          variants={cardVariants}
+          transition={{
+            layout: {
+              duration: 1.4,
+              ease: [0.16, 1, 0.3, 1],
+            },
+          }}
+          onAnimationComplete={(definition) => {
+            if (definition === "exitRight") {
+              onAboutExit?.();
+              return;
+            }
+
+            if (definition === "visible") {
+              handleCardRiseComplete();
+            }
+          }}
+          onAnimationStart={(definition) => {
+            if (definition === "visible" && !coldReturn) {
+              handleCardRiseStart();
+            }
+          }}
+        >
+          <ProjectCarousel
+            projects={projects}
+            activeIndex={activeIndex}
+            onActiveIndexChange={onActiveIndexChange}
+            closing={closing || returnClosing}
+            onOpen={onOpen}
+            onCollapseComplete={onCollapseComplete}
+            onPrefetch={onPrefetch}
+            previewFan={fanOpen}
+            enableLayoutId={!aboutReturn}
+          />
+        </motion.div>
+      </div>
+
+      {/* Dots desktop */}
+      {projects.length > 1 && (
+        <motion.div
+          className="absolute top-1/2 right-0 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex"
+          initial={active ? "hidden" : false}
+          animate={
+            aboutExit || orchestratedExit
+              ? "hidden"
+              : isCard
+                ? "visible"
+                : "hidden"
+          }
+          variants={dotsGroupVariants}
+        >
+          {projects.map((project, index) => (
+            <motion.button
+              key={project.slug}
+              type="button"
+              variants={dotVariants}
+              aria-label={`Show ${project.name}`}
+              aria-current={activeIndex === index ? "true" : undefined}
+              onClick={() => onActiveIndexChange(index)}
+              className={`size-1.5 rounded-full transition-all duration-300 ${
+                activeIndex === index
+                  ? "bg-foreground scale-110"
+                  : "bg-border hover:bg-muted"
+              }`}
+            />
+          ))}
+        </motion.div>
+      )}
+
+      {/* Dots mobile */}
+      {projects.length > 1 && (
+        <motion.div
+          className="absolute top-1/2 right-0 flex -translate-y-1/2 flex-col items-center gap-3 md:hidden"
+          initial={active ? "hidden" : false}
+          animate={
+            aboutExit || orchestratedExit
+              ? "hidden"
+              : isCard
+                ? "visible"
+                : "hidden"
+          }
+          variants={dotsGroupVariants}
+        >
+          {projects.map((project, index) => (
+            <motion.button
+              key={project.slug}
+              type="button"
+              variants={dotVariants}
+              aria-label={`Show ${project.name}`}
+              aria-current={activeIndex === index ? "true" : undefined}
+              onClick={() => onActiveIndexChange(index)}
+              className={`size-1.5 rounded-full transition-all ${
+                activeIndex === index ? "bg-foreground" : "bg-border"
+              }`}
+            />
+          ))}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+
+hero-section:
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
+
+import HeroIdentity from "@/components/portfolio/sections/hero-identity";
+import FeaturedWork from "@/components/portfolio/sections/featured-work";
+import ThemeCta from "@/components/ui/theme-cta";
+import { IntroProvider } from "@/components/portfolio/intro";
+import { useProjectSelection } from "@/components/portfolio/project-selection";
+import { about } from "@/content/about";
+import type { Project } from "@/types/project";
+
+type HeroSectionProps = {
+  projects: Project[];
+};
+
+// PortfolioCard menggunakan durasi fan 700ms.
+// Fallback diberi buffer agar tidak memotong animasi yang sedang berjalan.
+const FAN_CLOSE_FALLBACK_MS = 1000;
+
+export default function HeroSection({ projects }: HeroSectionProps) {
+  const router = useRouter();
+  const { activeSlug, setActiveSlug } = useProjectSelection();
+
+  const initialIndex = Math.max(
+    0,
+    projects.findIndex((project) => project.slug === activeSlug),
+  );
+
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [closing, setClosing] = useState(false);
+  const [aboutExiting, setAboutExiting] = useState(false);
+
+  const [cardCloseElapsed, setCardCloseElapsed] = useState(false);
+  const [identityExitComplete, setIdentityExitComplete] = useState(false);
+
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aboutNavigatingRef = useRef(false);
+  const aboutWarmRef = useRef(false);
+  const navigationStartedRef = useRef(false);
+
+  const activeProject = projects[activeIndex];
+
+  const handleActiveIndexChange = useCallback(
+    (index: number) => {
+      // Jangan biarkan project aktif berubah ketika card sedang collapse.
+      if (closing) {
+        return;
+      }
+
+      setActiveIndex(index);
+
+      const next = projects[index];
+
+      if (next) {
+        setActiveSlug(next.slug);
+      }
+    },
+    [closing, projects, setActiveSlug],
+  );
+
+  const handleOpen = useCallback(() => {
+    if (!activeProject || closing || navigationStartedRef.current) {
+      return;
+    }
+
+    setClosing(true);
+    setCardCloseElapsed(false);
+    setIdentityExitComplete(false);
+    navigationStartedRef.current = false;
+
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+    }
+
+    // Fallback hanya untuk kondisi callback animasi tidak terpanggil.
+    closeTimerRef.current = setTimeout(() => {
+      setCardCloseElapsed(true);
+      closeTimerRef.current = null;
+    }, FAN_CLOSE_FALLBACK_MS);
+  }, [activeProject, closing]);
+
+  const handleCollapseComplete = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    setCardCloseElapsed(true);
+  }, []);
+
+  // Navigasi menunggu penutupan card dan transisi identitas selesai.
+  useEffect(() => {
+    if (
+      !closing ||
+      !cardCloseElapsed ||
+      !identityExitComplete ||
+      !activeProject ||
+      navigationStartedRef.current
+    ) {
+      return;
+    }
+
+    navigationStartedRef.current = true;
+    router.push(`/project/${activeProject.slug}` as Route, {
+      transitionTypes: ["project-open"],
+    });
+  }, [closing, cardCloseElapsed, identityExitComplete, activeProject, router]);
+
+  const handleIdentityExitComplete = useCallback(() => {
+    setIdentityExitComplete(true);
+  }, []);
+
+  const handleOpenAbout = useCallback(() => {
+    if (aboutNavigatingRef.current) {
+      return;
+    }
+
+    aboutNavigatingRef.current = true;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (reduceMotion) {
+      router.push("/about" as Route, {
+        transitionTypes: ["to-about"],
+      });
+      return;
+    }
+
+    setAboutExiting(true);
+  }, [router]);
+
+  const handleAboutLeft = useCallback(() => {
+    router.push("/about" as Route, {
+      transitionTypes: ["to-about"],
+    });
+  }, [router]);
+
+  const handlePrefetch = useCallback(() => {
+    if (activeProject) {
+      router.prefetch(`/project/${activeProject.slug}` as Route);
+    }
+
+    router.prefetch("/about" as Route);
+
+    if (!aboutWarmRef.current) {
+      aboutWarmRef.current = true;
+
+      const image = new window.Image();
+      image.decoding = "async";
+      image.src = about.paperImage;
+    }
+  }, [activeProject, router]);
+
+  useEffect(() => {
+    if (activeProject) {
+      setActiveSlug(activeProject.slug);
+    }
+  }, [activeProject, setActiveSlug]);
+
+  useEffect(() => {
+    router.prefetch("/about" as Route);
+  }, [router]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <IntroProvider>
+      <main
+        id="top"
+        className="bg-surface text-foreground relative min-h-[100svh] w-full overflow-x-clip md:min-h-[200svh]"
+      >
+        {/* Sticky viewport — desktop scroll-lock behavior */}
+        <div className="relative flex min-h-[100svh] w-full items-center px-6 sm:px-10 md:sticky md:top-0 md:h-[100svh] md:min-h-0 lg:px-48">
+          {/* Theme switch CTA */}
+          <div className="fixed top-5 right-5 z-50">
+            <ThemeCta />
+          </div>
+
+          {/* Main composition */}
+          <div className="relative mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-2 py-8 md:grid-cols-[1fr_0.95fr] md:gap-10 md:py-24 lg:gap-20">
+            {/* Left: identity */}
+            <section className="relative z-10 flex w-full flex-col items-center md:items-start">
+              <HeroIdentity
+                onOpenAbout={handleOpenAbout}
+                projectExiting={closing}
+                onProjectExitComplete={handleIdentityExitComplete}
+              />
+            </section>
+
+            {/* Right: featured work carousel */}
+            <section className="relative flex items-center justify-center">
+              <FeaturedWork
+                projects={projects}
+                activeIndex={activeIndex}
+                onActiveIndexChange={handleActiveIndexChange}
+                closing={closing}
+                onOpen={handleOpen}
+                onCollapseComplete={handleCollapseComplete}
+                onPrefetch={handlePrefetch}
+                aboutExit={aboutExiting}
+                onAboutExit={handleAboutLeft}
+                showCarousel={true}
+              />
+            </section>
+          </div>
+        </div>
+      </main>
+    </IntroProvider>
+  );
+}
+
+
+projectdetail:
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+
+import { useRouter } from "next/navigation";
+import { ViewTransition } from "react";
+
+import { ArrowLeft, ExternalLink, Images, TextInitial } from "lucide-react";
+
+import { motion, type AnimationDefinition, type Variants } from "framer-motion";
+
+import PortfolioButton from "@/components/ui/PortfolioButton";
+
+import ProjectGallery, {
+  type ProjectGalleryHandle,
+} from "@/components/portfolio/sections/project-gallery";
+
+import ThemeCta from "@/components/ui/theme-cta";
+
+import { useProjectSelection } from "@/components/portfolio/project-selection";
+
+import {
+  clearTransitionContext,
+  orchestrateExitToHome,
+} from "@/components/portfolio/nav-intent";
+
+import type { Project } from "@/types/project";
+
+type ProjectDetailProps = {
+  project: Project;
+};
+
+const BACK_BUTTON_ENTER_DURATION = 1;
+const BACK_BUTTON_EXIT_DURATION = 1;
+
+const BACK_BUTTON_EASE = [0.16, 1, 0.3, 1] as const;
+
+const GALLERY_COMMIT_FALLBACK_MS = 500;
+const VIEW_TRANSITION_FALLBACK_MS = 1000;
+const TEXT_EXIT_FALLBACK_MS = 1200;
+
+const BACK_BUTTON_EXIT_FALLBACK_MS = 1300;
+const SCROLL_FALLBACK_MS = 1400;
+
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+  "Spacebar",
+]);
+
+const infoContainerVariants: Variants = {
+  hidden: {},
+
+  visible: {
+    transition: {
+      staggerChildren: 0.07,
+      delayChildren: 0.1,
+    },
+  },
+
+  exit: {
+    transition: {
+      staggerChildren: 0.05,
+      staggerDirection: -1,
+      delayChildren: 0,
+    },
+  },
+};
+
+const infoItemVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 18,
+  },
+
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.48,
+      ease: [0.25, 0.8, 0.25, 1],
+    },
+  },
+
+  exit: {
+    opacity: 0,
+    y: 34,
+    transition: {
+      duration: 0.24,
+      ease: [0.4, 0, 0.6, 1],
+    },
+  },
+};
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+/**
+ * Memberi batas waktu pada sebuah Promise.
+ * Timer dibersihkan ketika Promise selesai lebih awal.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T | undefined> {
+  let timeoutId: number | undefined;
+
+  const timeoutPromise = new Promise<undefined>((resolve) => {
+    timeoutId = window.setTimeout(() => {
+      resolve(undefined);
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+  });
+}
+
+export default function ProjectDetail({ project }: ProjectDetailProps) {
+  const router = useRouter();
+  const { setActiveSlug } = useProjectSelection();
+
+  const [view, setView] = useState<"gallery" | "detail">("gallery");
+  const [exiting, setExiting] = useState(false);
+
+  const [, startTransition] = useTransition();
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const backButtonRef = useRef<HTMLDivElement>(null);
+
+  const projectGalleryRef = useRef<ProjectGalleryHandle>(null);
+
+  const exitingRef = useRef(false);
+  const backSequencePendingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  // Mengontrol input selama seluruh proses Back.
+  const backInputUnlockRef = useRef<(() => void) | null>(null);
+
+  const exitTextResolveRef = useRef<(() => void) | null>(null);
+  const completedExitInfoItemsRef = useRef(new Set<string>());
+
+  const galleryCommitResolveRef = useRef<(() => void) | null>(null);
+  const galleryCommitPendingRef = useRef(false);
+
+  useEffect(() => {
+    setActiveSlug(project.slug);
+  }, [project.slug, setActiveSlug]);
+
+  useEffect(() => {
+    clearTransitionContext();
+  }, []);
+
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
+
+  /**
+   * Cleanup ketika component meninggalkan halaman.
+   */
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+
+      galleryCommitPendingRef.current = false;
+
+      galleryCommitResolveRef.current?.();
+      galleryCommitResolveRef.current = null;
+
+      projectGalleryRef.current?.cancelScroll();
+
+      exitTextResolveRef.current?.();
+      exitTextResolveRef.current = null;
+
+      backInputUnlockRef.current?.();
+      backInputUnlockRef.current = null;
+    };
+  }, []);
+
+  const hasLive = project.links.some(
+    (link) => link.label.toLowerCase() === "live",
+  );
+
+  /**
+   * Lock scroll interaction selama rangkaian Back.
+   *
+   * Scroll programatis tetap diperbolehkan sehingga GSAP
+   * masih dapat mengatur scrollTop.
+   */
+  const lockBackInput = useCallback(() => {
+    if (backInputUnlockRef.current) {
+      return;
+    }
+
+    const scroller = scrollRef.current;
+    const root = document.documentElement;
+
+    const previousOverflowY = scroller?.style.overflowY ?? "";
+    const previousScrollerBehavior = scroller?.style.scrollBehavior ?? "";
+
+    const previousRootBehavior = root.style.scrollBehavior;
+
+    if (scroller) {
+      // Hentikan native scrolling pada container desktop.
+      // scrollTop masih dapat diubah secara programatis.
+      scroller.style.overflowY = "hidden";
+      scroller.style.scrollBehavior = "auto";
+    }
+
+    // Hindari smooth scrolling CSS mengintervensi GSAP.
+    root.style.scrollBehavior = "auto";
+
+    const preventScroll = (event: Event) => {
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+    };
+
+    const preventScrollKeys = (event: KeyboardEvent) => {
+      if (!SCROLL_KEYS.has(event.key)) {
+        return;
+      }
+
+      const target = event.target;
+
+      // Jangan ganggu input dan elemen editable.
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.matches("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+
+    window.addEventListener("wheel", preventScroll, {
+      capture: true,
+      passive: false,
+    });
+
+    window.addEventListener("touchmove", preventScroll, {
+      capture: true,
+      passive: false,
+    });
+
+    window.addEventListener("keydown", preventScrollKeys, true);
+
+    let released = false;
+
+    const unlock = () => {
+      if (released) {
+        return;
+      }
+
+      released = true;
+
+      window.removeEventListener("wheel", preventScroll, true);
+      window.removeEventListener("touchmove", preventScroll, true);
+      window.removeEventListener("keydown", preventScrollKeys, true);
+
+      if (scroller) {
+        scroller.style.overflowY = previousOverflowY;
+        scroller.style.scrollBehavior = previousScrollerBehavior;
+      }
+
+      root.style.scrollBehavior = previousRootBehavior;
+
+      if (backInputUnlockRef.current === unlock) {
+        backInputUnlockRef.current = null;
+      }
+    };
+
+    backInputUnlockRef.current = unlock;
+  }, []);
+
+  /**
+   * Auto-scroll dengan fallback.
+   *
+   * Kalau GSAP tidak menyelesaikan tween dalam batas waktu,
+   * batalkan tween dan sejajarkan posisi secara instan.
+   */
+  const scrollToFirstCardSafely = useCallback(async (smooth: boolean) => {
+    const gallery = projectGalleryRef.current;
+
+    if (!gallery) {
+      return;
+    }
+
+    const scrollPromise = gallery
+      .scrollToFirstCard({ smooth })
+      .then(() => true);
+
+    const completed = await withTimeout(scrollPromise, SCROLL_FALLBACK_MS);
+
+    if (completed === true) {
+      return;
+    }
+
+    // Fallback jika animasi tidak selesai.
+    gallery.cancelScroll();
+
+    if (!mountedRef.current || exitingRef.current) {
+      return;
+    }
+
+    await gallery.scrollToFirstCard({
+      smooth: false,
+    });
+  }, []);
+
+  /**
+   * Resolve setelah Gallery commit dan dua frame untuk layout.
+   */
+  useLayoutEffect(() => {
+    if (view !== "gallery" || !galleryCommitPendingRef.current) {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        galleryCommitPendingRef.current = false;
+
+        galleryCommitResolveRef.current?.();
+        galleryCommitResolveRef.current = null;
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [view]);
+
+  /**
+   * Track completion animasi exit informasi.
+   */
+  const handleInfoItemAnimationComplete = useCallback(
+    (itemId: string, definition: AnimationDefinition) => {
+      if (definition !== "exit" || !exitingRef.current) {
+        return;
+      }
+
+      const completedItems = completedExitInfoItemsRef.current;
+
+      completedItems.add(itemId);
+
+      if (completedItems.size >= 4) {
+        exitTextResolveRef.current?.();
+        exitTextResolveRef.current = null;
+      }
+    },
+    [],
+  );
+
+  /**
+   * Memulai exit transition menuju Home.
+   *
+   * Animasi tombol menggunakan CSS translate property,
+   * agar tidak bentrok dengan transform milik Framer Motion.
+   */
+  const startBackExit = useCallback(() => {
+    if (exitingRef.current) {
+      return;
+    }
+
+    exitingRef.current = true;
+    setExiting(true);
+
+    // Tidak boleh ada tween scroll yang tertinggal.
+    projectGalleryRef.current?.cancelScroll();
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    // Biarkan orchestrator mengatur intent dan navigasi,
+    // termasuk ketika prefers-reduced-motion aktif.
+    if (reduceMotion) {
+      void orchestrateExitToHome(
+        () =>
+          router.push("/", {
+            transitionTypes: ["project-close"],
+          }),
+        [],
+        [],
+        "project",
+      );
+
+      return;
+    }
+
+    completedExitInfoItemsRef.current.clear();
+
+    const textExitPromise = new Promise<void>((resolve) => {
+      exitTextResolveRef.current = resolve;
+    });
+
+    const boundedTextExit = withTimeout(
+      textExitPromise,
+      TEXT_EXIT_FALLBACK_MS,
+    ).then(() => undefined);
+
+    /**
+     * Animasi tombol Back.
+     * Gunakan translate, bukan transform, karena elemen ini
+     * juga dikontrol oleh Framer Motion.
+     */
+    let boundedButtonExit: Promise<void> = Promise.resolve();
+
+    const backNode = backButtonRef.current;
+
+    if (backNode) {
+      try {
+        const animation = backNode.animate(
+          [
+            {
+              opacity: 1,
+              translate: "0px 0px",
+            },
+            {
+              opacity: 1,
+              translate: "80px 0px",
+            },
+          ],
+          {
+            duration: BACK_BUTTON_EXIT_DURATION * 1000,
+            easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+            fill: "forwards",
+          },
+        );
+
+        boundedButtonExit = withTimeout(
+          animation.finished.then(
+            () => undefined,
+            () => undefined,
+          ),
+          BACK_BUTTON_EXIT_FALLBACK_MS,
+        ).then(() => undefined);
+      } catch (error) {
+        console.error("Back button exit animation failed:", error);
+      }
+    }
+
+    /**
+     * Navigator menunggu kedua animasi:
+     * - Exit teks informasi.
+     * - Exit tombol Back.
+     *
+     * Jadi halaman tidak berpindah saat tombol masih bergerak.
+     */
+    void orchestrateExitToHome(
+      () =>
+        router.push("/", {
+          transitionTypes: ["project-close"],
+        }),
+      [],
+      [boundedTextExit, boundedButtonExit],
+      "project",
+    );
+  }, [router]);
+
+  /**
+   * Menunggu animasi React View Transition yang masih aktif.
+   */
+  const waitForViewTransition = useCallback(async () => {
+    await nextFrame();
+    await nextFrame();
+
+    const transitionAnimations = document
+      .getAnimations()
+      .filter((animation) => {
+        const effect = animation.effect;
+
+        if (!(effect instanceof KeyframeEffect)) {
+          return false;
+        }
+
+        const pseudoElement = effect.pseudoElement;
+
+        return (
+          typeof pseudoElement === "string" &&
+          pseudoElement.startsWith("::view-transition") &&
+          animation.playState !== "finished" &&
+          animation.playState !== "idle"
+        );
+      });
+
+    if (transitionAnimations.length > 0) {
+      await withTimeout(
+        Promise.all(
+          transitionAnimations.map((animation) =>
+            animation.finished.then(
+              () => undefined,
+              () => undefined,
+            ),
+          ),
+        ),
+        VIEW_TRANSITION_FALLBACK_MS,
+      );
+    }
+
+    await nextFrame();
+  }, []);
+
+  /**
+   * Back sequence:
+   *
+   * Detail:
+   * 1. Scroll ke item detail pertama.
+   * 2. Ubah view menjadi Gallery.
+   * 3. Tunggu Gallery commit.
+   * 4. Tunggu View Transition.
+   * 5. Align first Gallery card.
+   * 6. Exit ke Home.
+   *
+   * Gallery:
+   * 1. Scroll ke Gallery card pertama.
+   * 2. Exit ke Home.
+   */
+  const handleBack = useCallback(async () => {
+    if (exitingRef.current || backSequencePendingRef.current) {
+      return;
+    }
+
+    backSequencePendingRef.current = true;
+
+    // Kunci input sebelum memulai auto-scroll.
+    lockBackInput();
+
+    try {
+      if (view === "detail") {
+        await scrollToFirstCardSafely(true);
+
+        if (exitingRef.current || !mountedRef.current) {
+          return;
+        }
+
+        // Ganti view ke gallery secara instan
+        startTransition(() => {
+          setView("gallery");
+        });
+      } else {
+        // Gallery Back: scroll ke card pertama.
+        await scrollToFirstCardSafely(true);
+      }
+
+      if (exitingRef.current || !mountedRef.current) {
+        return;
+      }
+
+      // Exit dimulai setelah scroll/view switch selesai.
+      backSequencePendingRef.current = false;
+      startBackExit();
+    } catch (error) {
+      console.error("Back sequence failed:", error);
+
+      projectGalleryRef.current?.cancelScroll();
+
+      if (mountedRef.current && !exitingRef.current) {
+        backSequencePendingRef.current = false;
+        startBackExit();
+      }
+    } finally {
+      backSequencePendingRef.current = false;
+    }
+  }, [
+    view,
+    lockBackInput,
+    scrollToFirstCardSafely,
+    startTransition,
+    startBackExit,
+  ]);
+
+  /**
+   * Toggle Gallery / Detail.
+   */
+  const handleToggleView = useCallback(() => {
+    if (exitingRef.current || backSequencePendingRef.current) {
+      return;
+    }
+
+    // Hentikan scroll yang tertinggal sebelum berganti view.
+    projectGalleryRef.current?.cancelScroll();
+
+    startTransition(() => {
+      setView((current) => (current === "gallery" ? "detail" : "gallery"));
+    });
+  }, [startTransition]);
+
+  /**
+   * Live Preview.
+   */
+  const handleLivePreview = useCallback(() => {
+    const live = project.links.find(
+      (link) => link.label.toLowerCase() === "live",
+    );
+
+    if (!live?.href || live.href === "#") {
+      return;
+    }
+
+    window.open(live.href, "_blank", "noopener,noreferrer");
+  }, [project]);
+
+  /**
+   * Keyboard / outside click.
+   */
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        void handleBack();
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+
+      if (!target) {
+        return;
+      }
+
+      if (stageRef.current?.contains(target)) {
+        return;
+      }
+
+      if (target.closest("[data-detail-chrome]")) {
+        return;
+      }
+
+      void handleBack();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [handleBack]);
+
+  /**
+   * Desktop scrolling.
+   */
+  useEffect(() => {
+    const isDesktop = () => window.matchMedia("(min-width: 768px)").matches;
+
+    const canScroll = (element: HTMLElement) =>
+      element.scrollHeight > element.clientHeight;
+
+    const handleWheel = (event: WheelEvent) => {
+      const scroller = scrollRef.current;
+
+      if (backSequencePendingRef.current || exitingRef.current) {
+        return;
+      }
+
+      if (!scroller || event.ctrlKey) {
+        return;
+      }
+
+      if (!isDesktop() || !canScroll(scroller)) {
+        return;
+      }
+
+      if (scroller.contains(event.target as Node)) {
+        return;
+      }
+
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const unit =
+        event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? scroller.clientHeight
+            : 1;
+
+      scroller.scrollTop += event.deltaY * unit;
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const scroller = scrollRef.current;
+
+      if (backSequencePendingRef.current || exitingRef.current) {
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      if (!scroller || !isDesktop() || !canScroll(scroller)) {
+        return;
+      }
+
+      if (scroller.contains(event.target as Node)) {
+        return;
+      }
+
+      const active = document.activeElement as HTMLElement | null;
+
+      if (
+        active &&
+        (active.tagName === "BUTTON" ||
+          active.tagName === "A" ||
+          active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT" ||
+          active.isContentEditable)
+      ) {
+        return;
+      }
+
+      const page = scroller.clientHeight * 0.875;
+
+      let delta: number;
+
+      switch (event.key) {
+        case "ArrowDown":
+          delta = 40;
+          break;
+
+        case "ArrowUp":
+          delta = -40;
+          break;
+
+        case "PageDown":
+          delta = page;
+          break;
+
+        case "PageUp":
+          delta = -page;
+          break;
+
+        case "Home":
+          delta = -scroller.scrollTop;
+          break;
+
+        case "End":
+          delta =
+            scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
+          break;
+
+        case " ":
+        case "Spacebar":
+          delta = event.shiftKey ? -page : page;
+          break;
+
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      scroller.scrollTop += delta;
+    };
+
+    document.addEventListener("wheel", handleWheel, {
+      passive: false,
+    });
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("wheel", handleWheel);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const toggleIcon = view === "gallery" ? TextInitial : Images;
+  const toggleLabel = view === "gallery" ? "Detail" : "Gallery";
+
+  return (
+    <main
+      id="top"
+      className="bg-surface text-foreground relative min-h-[100svh] w-full overflow-x-clip pr-4 pl-6 sm:pr-6 sm:pl-10 md:h-[100svh] md:overflow-hidden lg:pr-12 lg:pl-48"
+    >
+      <div data-detail-chrome className="fixed top-5 right-5 z-50">
+        <ThemeCta />
+      </div>
+
+      <div
+        ref={stageRef}
+        className="relative mr-0 ml-auto grid w-full max-w-[1600px] grid-cols-1 items-stretch gap-0 md:h-full md:grid-cols-[0.85fr_1.15fr] md:grid-rows-1 md:gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20"
+      >
+        {/* Left: project information */}
+        <section className="relative z-0 flex w-full flex-col items-start py-16 md:justify-center md:py-24">
+          <div className="absolute top-1/2 right-0 hidden translate-x-[calc(100%+0.75rem)] -translate-y-1/2 md:block lg:translate-x-[calc(100%+1rem)]">
+            <motion.div
+              ref={backButtonRef}
+              initial={{ x: 80 }}
+              animate={{ x: 0 }}
+              transition={{
+                duration: BACK_BUTTON_ENTER_DURATION,
+                ease: BACK_BUTTON_EASE,
+              }}
+              className="relative"
+            >
+              <PortfolioButton
+                text={false}
+                icon={ArrowLeft}
+                aria-label="Kembali"
+                onClick={handleBack}
+              />
+            </motion.div>
+          </div>
+
+          <ViewTransition name="project-info" share="auto" default="none">
+            <div className="w-full">
+              <motion.div
+                initial="hidden"
+                animate={exiting ? "exit" : "visible"}
+                variants={infoContainerVariants}
+              >
+                <motion.div
+                  variants={infoItemVariants}
+                  onAnimationComplete={(definition) =>
+                    handleInfoItemAnimationComplete("category", definition)
+                  }
+                  className="text-muted mb-4 flex items-center gap-2 text-[10px] tracking-[0.18em] uppercase"
+                >
+                  {project.category} — {project.year}
+                </motion.div>
+
+                <motion.h1
+                  variants={infoItemVariants}
+                  onAnimationComplete={(definition) =>
+                    handleInfoItemAnimationComplete("title", definition)
+                  }
+                  className="font-regular text-2xl sm:text-3xl md:text-4xl lg:text-4xl"
+                >
+                  {project.name}
+                </motion.h1>
+
+                <motion.p
+                  variants={infoItemVariants}
+                  onAnimationComplete={(definition) =>
+                    handleInfoItemAnimationComplete("role", definition)
+                  }
+                  className="font-regular text-muted text-2xl sm:text-3xl md:text-4xl lg:text-4xl"
+                >
+                  {project.role}
+                </motion.p>
+
+                {/* Desktop actions */}
+                <motion.div
+                  variants={infoItemVariants}
+                  onAnimationComplete={(definition) =>
+                    handleInfoItemAnimationComplete("actions", definition)
+                  }
+                  className="mt-12 hidden items-center gap-2 md:flex"
+                >
+                  <PortfolioButton
+                    text
+                    icon={toggleIcon}
+                    iconPosition="left"
+                    colour={view === "detail" ? "dark" : "light"}
+                    onClick={handleToggleView}
+                  >
+                    {toggleLabel}
+                  </PortfolioButton>
+
+                  <PortfolioButton
+                    text
+                    icon={ExternalLink}
+                    disabled={!hasLive}
+                    onClick={handleLivePreview}
+                  >
+                    Live Preview
+                  </PortfolioButton>
+                </motion.div>
+              </motion.div>
+            </div>
+          </ViewTransition>
+        </section>
+
+        {/* Right: gallery */}
+        <section className="relative z-20 w-full md:h-full md:min-h-0">
+          <motion.div
+            ref={scrollRef}
+            layoutScroll
+            className="project-gallery-scroll w-full md:h-full md:min-h-0 md:[scrollbar-width:none] md:overflow-y-auto md:overscroll-contain md:[&::-webkit-scrollbar]:hidden"
+          >
+            <ProjectGallery
+              ref={projectGalleryRef}
+              project={project}
+              view={view}
+              onToggleView={handleToggleView}
+            />
+          </motion.div>
+        </section>
+      </div>
+
+      {/* Mobile dock */}
+      <motion.div
+        data-detail-chrome
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 px-4 py-3 md:hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={exiting ? { opacity: 0, y: 34 } : { opacity: 1, y: 0 }}
+        transition={{
+          duration: exiting ? 0.24 : 0.48,
+          ease: exiting ? [0.4, 0, 0.6, 1] : [0.25, 0.8, 0.25, 1],
+        }}
+      >
+        <PortfolioButton
+          text={false}
+          icon={ArrowLeft}
+          aria-label="Kembali"
+          onClick={handleBack}
+        />
+
+        <PortfolioButton
+          text
+          icon={toggleIcon}
+          iconPosition="left"
+          colour={view === "detail" ? "dark" : "light"}
+          onClick={handleToggleView}
+        >
+          {toggleLabel}
+        </PortfolioButton>
+
+        <PortfolioButton
+          text
+          icon={ExternalLink}
+          disabled={!hasLive}
+          onClick={handleLivePreview}
+        >
+          Live Preview
+        </PortfolioButton>
+      </motion.div>
+    </main>
+  );
+}
+
+
+projectgallery:
+"use client";
+
+import {
+  ViewTransition,
+  forwardRef,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+import type { Project } from "@/types/project";
+
+gsap.registerPlugin(ScrollTrigger);
+
+export type ProjectGalleryHandle = {
+  scrollToFirstCard(options?: { smooth?: boolean }): Promise<void>;
+  cancelScroll: () => void;
+};
+
+type ProjectGalleryProps = {
+  project: Project;
+  view: "gallery" | "detail";
+  onToggleView: () => void;
+};
+
+const TOP_OFFSET = 32;
+
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+  "Spacebar",
+]);
+
+const ProjectGallery = forwardRef<ProjectGalleryHandle, ProjectGalleryProps>(
+  function ProjectGallery({ project, view, onToggleView }, ref) {
+    const galleryRef = useRef<HTMLUListElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const detailRef = useRef<HTMLDivElement>(null);
+
+    const cancelScrollRef = useRef<(() => void) | null>(null);
+
+    // Mencegah entrance gallery dibuat ulang ketika kembali dari detail.
+    const hasPlayedGalleryEntrance = useRef(false);
+    const previousSlugRef = useRef(project.slug);
+
+    // Reset entrance hanya jika project benar-benar berganti.
+    if (previousSlugRef.current !== project.slug) {
+      previousSlugRef.current = project.slug;
+      hasPlayedGalleryEntrance.current = false;
+    }
+
+    useImperativeHandle(ref, () => {
+      const cancelScroll = () => {
+        cancelScrollRef.current?.();
+        cancelScrollRef.current = null;
+      };
+
+      function scrollToFirstCard(options?: {
+        smooth?: boolean;
+      }): Promise<void> {
+        // Hentikan tween sebelumnya sebelum membuat tween baru.
+        cancelScroll();
+
+        return new Promise<void>((resolve) => {
+          const root = contentRef.current;
+
+          if (!root) {
+            resolve();
+            return;
+          }
+
+          const firstCard =
+            root.querySelector<HTMLElement>("[data-gallery-item]") ??
+            root.querySelector<HTMLElement>("[data-detail-item]");
+
+          if (!firstCard) {
+            resolve();
+            return;
+          }
+
+          const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+
+          const scroller: HTMLElement | null = isDesktop
+            ? root.closest<HTMLElement>(".project-gallery-scroll")
+            : null;
+
+          const reduceMotion = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+
+          const smooth = options?.smooth !== false && !reduceMotion;
+
+          const getPosition = () =>
+            scroller ? scroller.scrollTop : window.scrollY;
+
+          const getMaxScroll = () =>
+            scroller
+              ? Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+              : Math.max(
+                  0,
+                  document.documentElement.scrollHeight - window.innerHeight,
+                );
+
+          const getTarget = () => {
+            const rect = firstCard.getBoundingClientRect();
+
+            const rawTarget = scroller
+              ? scroller.scrollTop +
+                rect.top -
+                scroller.getBoundingClientRect().top -
+                scroller.clientTop -
+                TOP_OFFSET
+              : window.scrollY + rect.top - window.innerHeight;
+
+            return Math.max(0, Math.min(getMaxScroll(), rawTarget));
+          };
+
+          const setPosition = (position: number) => {
+            if (scroller) {
+              scroller.scrollTop = position;
+            } else {
+              window.scrollTo({
+                top: position,
+                left: 0,
+                behavior: "auto",
+              });
+            }
+          };
+
+          /**
+           * Kunci input manual selama auto-scroll.
+           * Ini mencegah wheel/touch/key scrolling berebut dengan GSAP.
+           */
+          const lockUserScroll = () => {
+            const scrollStyleElement = scroller ?? document.documentElement;
+
+            const previousScrollBehavior =
+              scrollStyleElement.style.scrollBehavior;
+
+            scrollStyleElement.style.scrollBehavior = "auto";
+
+            const preventScroll = (event: Event) => {
+              if (event.cancelable) {
+                event.preventDefault();
+              }
+            };
+
+            const handleKeyDown = (event: KeyboardEvent) => {
+              if (!SCROLL_KEYS.has(event.key)) {
+                return;
+              }
+
+              const target = event.target;
+
+              // Tetap izinkan interaksi normal pada field input.
+              if (
+                target instanceof HTMLElement &&
+                (target.isContentEditable ||
+                  target.matches(
+                    "input, textarea, select, [contenteditable='true']",
+                  ))
+              ) {
+                return;
+              }
+
+              event.preventDefault();
+            };
+
+            window.addEventListener("wheel", preventScroll, {
+              capture: true,
+              passive: false,
+            });
+
+            window.addEventListener("touchmove", preventScroll, {
+              capture: true,
+              passive: false,
+            });
+
+            window.addEventListener("keydown", handleKeyDown, true);
+
+            let released = false;
+
+            return () => {
+              if (released) {
+                return;
+              }
+
+              released = true;
+
+              window.removeEventListener("wheel", preventScroll, true);
+
+              window.removeEventListener("touchmove", preventScroll, true);
+
+              window.removeEventListener("keydown", handleKeyDown, true);
+
+              scrollStyleElement.style.scrollBehavior = previousScrollBehavior;
+            };
+          };
+
+          if (!smooth) {
+            setPosition(getTarget());
+            resolve();
+            return;
+          }
+
+          // Ambil alih scroll sebelum menghitung target.
+          const releaseScrollLock = lockUserScroll();
+
+          const start = getPosition();
+          const target = getTarget();
+
+          if (Math.abs(start - target) <= 2) {
+            setPosition(target);
+            releaseScrollLock();
+            resolve();
+            return;
+          }
+
+          const scrollObj = { y: start };
+
+          let settled = false;
+
+          const finish = () => {
+            if (settled) {
+              return;
+            }
+
+            settled = true;
+            releaseScrollLock();
+
+            if (cancelScrollRef.current === cancel) {
+              cancelScrollRef.current = null;
+            }
+
+            resolve();
+          };
+
+          const cancel = () => {
+            gsap.killTweensOf(scrollObj);
+            finish();
+          };
+
+          cancelScrollRef.current = cancel;
+
+          gsap.to(scrollObj, {
+            y: target,
+            duration: 0.5,
+            ease: "power2.inOut",
+            overwrite: "auto",
+            onUpdate: () => {
+              setPosition(scrollObj.y);
+            },
+            onComplete: finish,
+          });
+        });
+      }
+
+      return {
+        scrollToFirstCard,
+        cancelScroll,
+      };
+    }, []);
+
+    // Detail text entrance animation.
+    useLayoutEffect(() => {
+      if (view !== "detail" || !detailRef.current) {
+        return;
+      }
+
+      const container = detailRef.current;
+
+      const textElements =
+        container.querySelectorAll<HTMLElement>("[data-detail-text]");
+
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      if (reduceMotion) {
+        gsap.set(textElements, { clearProps: "all" });
+        return;
+      }
+
+      const context = gsap.context(() => {
+        gsap.fromTo(
+          textElements,
+          { autoAlpha: 0, y: 24 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.7,
+            stagger: 0.1,
+            ease: "power3.out",
+            clearProps: "transform,opacity,visibility",
+          },
+        );
+      }, container);
+
+      return () => context.revert();
+    }, [project.slug, view]);
+
+    // Gallery entrance animation: only once per project mount.
+    useLayoutEffect(() => {
+      if (view !== "gallery" || !galleryRef.current) {
+        return;
+      }
+
+      if (hasPlayedGalleryEntrance.current) {
+        return;
+      }
+
+      hasPlayedGalleryEntrance.current = true;
+
+      const gallery = galleryRef.current;
+
+      const items = gallery.querySelectorAll<HTMLElement>(
+        "[data-gallery-item]",
+      );
+
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      if (reduceMotion) {
+        gsap.set(items, { clearProps: "all" });
+        return;
+      }
+
+      const scrollContainer = window.matchMedia("(min-width: 768px)").matches
+        ? gallery.closest<HTMLElement>(".project-gallery-scroll")
+        : null;
+
+      const context = gsap.context(() => {
+        const otherItems = Array.from(items).slice(1);
+
+        if (otherItems.length === 0) {
+          return;
+        }
+
+        gsap.fromTo(
+          otherItems,
+          { autoAlpha: 0, y: 48 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.8,
+            delay: 0.45,
+            stagger: 0.1,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: gallery,
+              scroller: scrollContainer ?? undefined,
+              start: "top 85%",
+              toggleActions: "play none none reverse",
+            },
+          },
+        );
+
+        ScrollTrigger.refresh();
+      }, gallery);
+
+      return () => context.revert();
+    }, [project.slug, view]);
+
+    // Cancel active scrolling when this component unmounts.
+    useLayoutEffect(() => {
+      return () => {
+        cancelScrollRef.current?.();
+        cancelScrollRef.current = null;
+      };
+    }, []);
+
+    const detailSections = [
+      { title: "About project", body: project.about },
+      { title: "Challenge", body: project.challenge },
+      { title: "Solution", body: project.solution },
+      { title: "Result", body: project.result },
+    ];
+
+    const handleCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onToggleView();
+      }
+    };
+
+    // Harus sama urutannya dengan media di PortfolioCard.
+    const galleryMedia = [
+      ...(project.videos ?? []).map((src) => ({
+        src,
+        type: "video" as const,
+      })),
+      ...(project.images ?? []).map((src) => ({
+        src,
+        type: "image" as const,
+      })),
+    ];
+
+    return (
+      <div
+        ref={contentRef}
+        className="flex w-full flex-col gap-3 pb-24 md:pt-8 md:pb-8"
+      >
+        {view === "gallery" ? (
+          <ul
+            ref={galleryRef}
+            className="bg-surface flex w-full flex-col gap-3 md:pl-6"
+          >
+            {galleryMedia.map(({ src, type }, index) => {
+              const card = (
+                <motion.li
+                  key={`${type}-${src}`}
+                  data-gallery-item
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Beralih ke detail project ${project.name}`}
+                  onClick={onToggleView}
+                  onKeyDown={handleCardKeyDown}
+                  className="relative aspect-square w-full shrink-0 cursor-pointer overflow-hidden rounded-[44px]"
+                >
+                  {type === "video" ? (
+                    <video
+                      src={src}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      aria-label={`${project.name} video preview ${index + 1}`}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={src}
+                      alt={`${project.name} — gambar ${index + 1}`}
+                      fill
+                      sizes="(min-width: 1024px) 40vw, 90vw"
+                      className="object-cover"
+                    />
+                  )}
+                </motion.li>
+              );
+
+              if (index !== 0) {
+                return card;
+              }
+
+              return (
+                <ViewTransition
+                  key={`project-cover-${project.slug}`}
+                  name={`project-cover-${project.slug}`}
+                  default="none"
+                  share={{
+                    "project-open": "morph-open",
+                    "project-close": "morph-close",
+                    default: "morph-open",
+                  }}
+                >
+                  {card}
+                </ViewTransition>
+              );
+            })}
+          </ul>
+        ) : (
+          <div ref={detailRef} className="flex w-full flex-col gap-3">
+            {detailSections.map(({ title, body }) => (
+              <article
+                key={title}
+                data-detail-item
+                role="button"
+                tabIndex={0}
+                aria-label={`Kembali ke gallery ${project.name}`}
+                onClick={onToggleView}
+                onKeyDown={handleCardKeyDown}
+                className="bg-solid text-foreground relative flex aspect-square w-full shrink-0 cursor-pointer flex-col overflow-hidden rounded-[44px] p-6 shadow-sm sm:p-8 md:p-9 lg:p-10"
+              >
+                <h3
+                  data-detail-text
+                  className="text-foreground/60 text-[10px] md:text-[clamp(0.9rem,1vw,1.1rem)]"
+                >
+                  {title}
+                </h3>
+
+                <p
+                  data-detail-text
+                  className="mt-3 text-sm leading-relaxed md:mt-6 md:text-[clamp(1.2rem,1.5vw,1.6rem)] md:leading-[1.55]"
+                >
+                  {body}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+ProjectGallery.displayName = "ProjectGallery";
+
+export default ProjectGallery;
+
+
+nav-intents:
+
+/**
+ * nav-intent.ts — Navigation Intent & Transition Coordinator
+ *
+ * Fungsi:
+ * 1. Navigation Context: identitas navigasi eksplisit.
+ * 2. Transition Coordinator: orkestrasi exit animations, completion signals,
+ *    lalu navigate.
+ * 3. Phase emitter: untuk listener animasi yang perlu sinkron.
+ */
+
+export type NavIntent =
+  | "about-cold"
+  | "home-cold"
+  | "home-from-project";
+
+export type TransitionStatus =
+  | "idle"
+  | "preparing"
+  | "exiting"
+  | "navigating"
+  | "entering"
+  | "completed"
+  | "cancelled";
+
+export interface NavigationContext {
+  id: string;
+  source: string;
+  destination: string;
+  intent: NavIntent;
+  status: TransitionStatus;
+  timestamp: number;
+}
+
+let transitionContext: NavigationContext | null = null;
+
+let currentExitAnimations: Array<{
+  name: string;
+  animation: Animation | null;
+}> = [];
+
+const phaseListeners = new Set<(phase: AnimationPhase) => void>();
+
+function generateNavigationId(): string {
+  return `nav_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function emitPhase(phase: AnimationPhase): void {
+  phaseListeners.forEach((callback) => callback(phase));
+}
+
+function setContextStatus(status: TransitionStatus): void {
+  if (transitionContext) {
+    transitionContext = {
+      ...transitionContext,
+      status,
+    };
+  }
+}
+
+// ============================================================================
+// Phase Emitter
+// ============================================================================
+
+export type AnimationPhase =
+  | "idle"
+  | "button-exit"
+  | "panel-exit"
+  | "navigating";
+
+export function subscribeNavAnimation(
+  callback: (phase: AnimationPhase) => void,
+): () => void {
+  phaseListeners.add(callback);
+
+  return () => {
+    phaseListeners.delete(callback);
+  };
+}
+
+export function getNavAnimationPhase(): AnimationPhase {
+  if (!transitionContext) return "idle";
+
+  switch (transitionContext.status) {
+    case "exiting":
+      return "button-exit";
+
+    case "navigating":
+      return "navigating";
+
+    default:
+      return "idle";
+  }
+}
+
+// ============================================================================
+// Navigation Context API
+// ============================================================================
+
+export function setTransitionContext(ctx: NavigationContext): void {
+  transitionContext = ctx;
+}
+
+export function peekTransitionContext(): NavigationContext | null {
+  return transitionContext;
+}
+
+export function clearTransitionContext(): void {
+  transitionContext = null;
+  currentExitAnimations = [];
+}
+
+// ============================================================================
+// Animation Registration
+// ============================================================================
+
+export interface ExitAnimation {
+  name: string;
+  run: () => Animation | null | undefined;
+}
+
+export function registerExitAnimations(
+  animations: ExitAnimation[],
+): void {
+  currentExitAnimations = animations.map((a) => {
+    if (!a || typeof a.run !== "function") {
+      console.error(
+        "[nav-intent] Invalid animation object:",
+        a?.name ?? "unknown",
+        a,
+      );
+
+      return {
+        name: a?.name ?? "unknown",
+        animation: null,
+      };
+    }
+
+    try {
+      return {
+        name: a.name,
+        animation: a.run() ?? null,
+      };
+    } catch (error) {
+      console.error(
+        `[nav-intent] Failed to start animation "${a.name}":`,
+        error,
+      );
+
+      return {
+        name: a.name,
+        animation: null,
+      };
+    }
+  });
+}
+
+/**
+ * Menunggu seluruh animasi WAAPI yang terdaftar dan completion
+ * Promise tambahan, misalnya animasi exit dari Framer Motion.
+ */
+export async function waitForExitAnimations(
+  completionPromises: Promise<unknown>[] = [],
+): Promise<void> {
+  setContextStatus("exiting");
+
+  const animationPromises = currentExitAnimations.map(
+    async ({ name, animation }) => {
+      if (!animation) return;
+
+      try {
+        await animation.finished;
+      } catch (error) {
+        // Animation.finished dapat reject ketika animasi dibatalkan.
+        if (process.env.NODE_ENV === "development") {
+          console.debug(
+            `[nav-intent] Animation "${name}" cancelled:`,
+            error,
+          );
+        }
+      }
+    },
+  );
+
+  const additionalPromises = completionPromises.map((promise) =>
+    promise.catch((error) => {
+      if (process.env.NODE_ENV === "development") {
+        console.debug(
+          "[nav-intent] Additional exit completion rejected:",
+          error,
+        );
+      }
+    }),
+  );
+
+  await Promise.all([
+    ...animationPromises,
+    ...additionalPromises,
+  ]);
+
+  currentExitAnimations = [];
+}
+
+// ============================================================================
+// Transition Coordinator
+// ============================================================================
+
+const PANEL_TRANSITION_MS = 720;
+
+export const CAROUSEL_EXIT_DURATION = PANEL_TRANSITION_MS;
+export const GHOST_CARD_DURATION = PANEL_TRANSITION_MS;
+
+export const BUTTON_EXIT_DURATION = 320;
+export const PANEL_EXIT_DELAY = 30;
+
+function createTransitionContext(
+  source: NavigationContext["source"],
+  destination: NavigationContext["destination"],
+  intent: NavIntent,
+): NavigationContext {
+  return {
+    id: generateNavigationId(),
+    source,
+    destination,
+    intent,
+    status: "preparing",
+    timestamp: Date.now(),
+  };
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+async function completeExitTransition(
+  onNavigate: () => void,
+  options?: {
+    emitPanelExit?: boolean;
+    completionPromises?: Promise<unknown>[];
+  },
+): Promise<void> {
+  emitPhase("button-exit");
+
+  if (options?.emitPanelExit) {
+    setTimeout(() => {
+      emitPhase("panel-exit");
+    }, PANEL_EXIT_DELAY);
+  } else {
+    emitPhase("panel-exit");
+  }
+
+  await waitForExitAnimations(options?.completionPromises);
+
+  setContextStatus("navigating");
+  emitPhase("navigating");
+
+  onNavigate();
+}
+
+export async function orchestrateExitToAbout(
+  onNavigate: () => void,
+  exitAnimations: ExitAnimation[],
+): Promise<void> {
+  setTransitionContext(
+    createTransitionContext("home", "about", "about-cold"),
+  );
+
+  if (prefersReducedMotion()) {
+    currentExitAnimations = [];
+
+    setContextStatus("navigating");
+    emitPhase("navigating");
+
+    onNavigate();
+    return;
+  }
+
+  registerExitAnimations(exitAnimations);
+
+  await completeExitTransition(onNavigate, {
+    emitPanelExit: true,
+  });
+}
+
+export async function orchestrateExitToHome(
+  onNavigate: () => void,
+  exitAnimations: ExitAnimation[],
+  completionPromises: Promise<unknown>[] = [],
+  source: "about" | "project" = "about",
+): Promise<void> {
+  setTransitionContext(
+    createTransitionContext(
+      source,
+      "home",
+      source === "project" ? "home-from-project" : "home-cold",
+    ),
+  );
+
+  if (prefersReducedMotion()) {
+    currentExitAnimations = [];
+
+    setContextStatus("navigating");
+    emitPhase("navigating");
+
+    onNavigate();
+    return;
+  }
+
+  registerExitAnimations(exitAnimations);
+
+  await completeExitTransition(onNavigate, {
+    completionPromises,
+  });
+}
+
+// ============================================================================
+// Carousel Bounds
+// ============================================================================
+
+export type CarouselBounds = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  centerY: number;
+};
+
+let carouselBounds: CarouselBounds | null = null;
+
+export function setCarouselBounds(bounds: CarouselBounds): void {
+  carouselBounds = bounds;
+}
+
+export function peekCarouselBounds(): CarouselBounds | null {
+  return carouselBounds;
+}
+
+export function clearCarouselBounds(): void {
+  carouselBounds = null;
+}
+
+// ============================================================================
+// Reset
+// ============================================================================
+
+export function resetNavAnimation(): void {
+  transitionContext = null;
+  currentExitAnimations = [];
+
+  phaseListeners.forEach((callback) => callback("idle"));
+}
+
+
+
+portfoliocard:
+"use client";
+
+import { useState, useEffect, type PointerEvent } from "react";
+
+import Image from "next/image";
+import { motion } from "framer-motion";
+import type { Project } from "@/types/project";
+import { useMagnetic } from "@/hooks/use-magnetic";
+
+type PortfolioCardProps = {
+  project: Project;
+  className?: string;
+  magnetStrength?: number;
+  maxOffset?: number;
+  magnetScale?: number;
+  tilt?: number;
+  expanded?: boolean;
+  closing?: boolean;
+  enableLayoutId?: boolean;
+  onActivate?: () => void;
+  /** Dipanggil setelah animasi collapse selesai. */
+  onCollapseComplete?: () => void;
+  onPrefetch?: () => void;
+  previewFan?: boolean;
+};
+
+/** Konfigurasi kipas per-depth (index 0 = layer paling dekat front card). */
+const FAN_LAYERS = [
+  // Card 2
+  { rotate: 3, scale: 0.97, hoverRotate: 12, hoverScale: 0.95 },
+
+  // Card 3
+  { rotate: -6, scale: 0.94, hoverRotate: -24, hoverScale: 0.91 },
+
+  // Card 4 — posisi seperti card 2, tetapi miring ke kiri
+  { rotate: -3, scale: 0.97, hoverRotate: -12, hoverScale: 0.95 },
+
+  // Card 5
+  { rotate: -12, scale: 0.88, hoverRotate: -44, hoverScale: 0.85 },
+
+  // Card 6
+  { rotate: 15, scale: 0.85, hoverRotate: 54, hoverScale: 0.82 },
+];
+
+/** Ukuran kartu responsif: base 288x296, sm 312x320, lg 352x362. */
+export const CARD_SIZE =
+  "h-[296px] w-[288px] sm:h-[320px] sm:w-[312px] lg:h-[362px] lg:w-[352px]";
+
+/** `sizes` untuk next/image — sinkron dengan CARD_SIZE di atas. */
+const IMAGE_SIZES =
+  "(min-width: 1024px) 352px, (min-width: 640px) 312px, 288px";
+
+export default function PortfolioCard({
+  project,
+  className = "",
+  magnetStrength = 0.06,
+  maxOffset = 12,
+  magnetScale = 1.015,
+  tilt = 7,
+  expanded = false,
+  closing = false,
+  enableLayoutId = true,
+  onActivate,
+  onCollapseComplete,
+  onPrefetch,
+  previewFan = false,
+}: PortfolioCardProps) {
+  const images = project.images ?? [];
+  const videos = project.videos ?? [];
+
+  const media = [
+    ...videos.map((src) => ({ src, type: "video" as const })),
+    ...images.map((src) => ({ src, type: "image" as const })),
+  ];
+
+  const [cover, ...backMedia] = media;
+
+  const [hovered, setHovered] = useState(false);
+
+  const { ref, handlers } = useMagnetic<HTMLDivElement>({
+    magnetStrength,
+    maxOffset,
+    magnetScale,
+    tilt,
+    disabled: expanded || closing,
+  });
+
+  const collapsed = expanded || closing;
+  const fanOpen = (hovered || previewFan) && !collapsed;
+
+  // Tidak ada back layer yang perlu dianimasikan pada card dengan satu media.
+  // Laporkan selesai langsung agar HeroSection tidak menunggu fallback 1 detik.
+  useEffect(() => {
+    if (closing && backMedia.length === 0) {
+      onCollapseComplete?.();
+    }
+  }, [closing, backMedia.length, onCollapseComplete]);
+
+  const handlePointerEnter = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "touch") setHovered(true);
+    onPrefetch?.();
+    handlers.onPointerEnter(event);
+  };
+
+  const handlePointerLeave = (event: PointerEvent<HTMLDivElement>) => {
+    setHovered(false);
+    handlers.onPointerLeave(event);
+  };
+
+  return (
+    <div
+      ref={ref}
+      onPointerEnter={handlePointerEnter}
+      onPointerMove={handlers.onPointerMove}
+      onPointerLeave={handlePointerLeave}
+      onPointerDown={handlers.onPointerDown}
+      onPointerUp={handlers.onPointerUp}
+      onPointerCancel={handlers.onPointerCancel}
+      style={{
+        transformOrigin: "center center",
+        willChange: "transform",
+      }}
+      className={`relative flex w-full items-center justify-center ${className}`}
+    >
+      {/* Back layers */}
+      {backMedia.map(({ src, type }, index) => {
+        const fan = FAN_LAYERS[Math.min(index, FAN_LAYERS.length - 1)];
+        const rotate = collapsed ? 0 : fanOpen ? fan.hoverRotate : fan.rotate;
+        const scale = collapsed ? 1 : fanOpen ? fan.hoverScale : fan.scale;
+
+        return (
+          <motion.div
+            key={`${type}-${src}`}
+            aria-hidden="true"
+            animate={{
+              rotate,
+              scale,
+              borderRadius: "34px",
+            }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            onAnimationComplete={() => {
+              if (
+                collapsed &&
+                index === backMedia.length - 1 &&
+                onCollapseComplete
+              ) {
+                onCollapseComplete();
+              }
+            }}
+            style={{
+              zIndex: 9 - index,
+            }}
+            className={`pointer-events-none absolute ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] ${project.theme}`}
+          >
+            {type === "video" ? (
+              <video
+                src={src}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes={IMAGE_SIZES}
+                className="object-cover"
+              />
+            )}
+
+            <div className="absolute inset-[8%] rounded-[26px]" />
+            <div className="absolute inset-x-0 bottom-0 h-[35%] bg-gradient-to-t from-black/[0.08] to-transparent" />
+          </motion.div>
+        );
+      })}
+
+      {/* Front card — tanpa ViewTransition agar tidak bentrok dengan Framer Motion */}
+      <motion.button
+        layoutId={enableLayoutId ? `card-${project.slug}` : undefined}
+        type="button"
+        onClick={onActivate}
+        aria-label={`Buka project ${project.name}`}
+        style={{
+          transform: fanOpen ? "translateY(-3px) scale(1.01)" : "none",
+        }}
+        animate={{
+          borderRadius: "34px",
+        }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className={`relative z-10 block cursor-pointer ${CARD_SIZE} origin-bottom overflow-hidden rounded-[34px] text-left ${project.theme}`}
+      >
+        {cover?.type === "video" ? (
+          <video
+            src={cover.src}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-label={`${project.name} video preview`}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : cover?.type === "image" ? (
+          <Image
+            src={cover.src}
+            alt={project.name}
+            fill
+            sizes={IMAGE_SIZES}
+            className="object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+        <div className="absolute inset-x-0 bottom-0 p-6">
+          <h2 className="text-xl font-medium tracking-[-0.04em] text-white">
+            {project.name}
+          </h2>
+        </div>
+      </motion.button>
+    </div>
+  );
+}
+
+
+projectcarousel:
+"use client";
+
+import { useEffect, useRef } from "react";
+import PortfolioCard from "@/components/ui/PortfolioCard";
+import type { Project } from "@/types/project";
+
+type ProjectCarouselProps = {
+  /** Index project aktif (controlled oleh parent). */
+  activeIndex: number;
+  /** Callback saat navigasi wheel mengubah project aktif. */
+  onActiveIndexChange: (index: number) => void;
+  /** Fase menutup fan sebelum navigasi. */
+  closing?: boolean;
+  /** Callback saat card aktif diklik. */
+  onOpen?: () => void;
+  /** Dipanggil setelah animasi collapse selesai. */
+  onCollapseComplete?: () => void;
+  /** Prefetch route detail saat pointer masuk card. */
+  onPrefetch?: () => void;
+  /** Paksa fan terbuka untuk animasi intro. */
+  previewFan?: boolean;
+  enableLayoutId?: boolean;
+  enableWheel?: boolean;
+  className?: string;
+  projects: Project[];
+};
+
+const WHEEL_THRESHOLD = 40;
+const WHEEL_LOCK_DURATION = 650;
+const WHEEL_GESTURE_RESET_MS = 150;
+const WHEEL_DIRECTION_RESET_MS = 120;
+const TOUCH_THRESHOLD = 35;
+
+const CARD_SPACING = 180;
+const IDLE_SCALE = 0.68;
+
+export default function ProjectCarousel({
+  projects,
+  activeIndex,
+  onActiveIndexChange,
+  closing = false,
+  onOpen,
+  onCollapseComplete,
+  onPrefetch,
+  previewFan = false,
+  enableLayoutId = true,
+  enableWheel = true,
+  className = "",
+}: ProjectCarouselProps) {
+  const activeIndexRef = useRef(activeIndex);
+
+  const wheelLockedRef = useRef(false);
+  const wheelDeltaRef = useRef(0);
+  const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wheelGestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const lastWheelTimeRef = useRef(0);
+
+  const touchStartYRef = useRef(0);
+  const touchTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  const projectCount = projects.length;
+
+  useEffect(() => {
+    // Jangan izinkan pergantian active card selama collapse.
+    if (!enableWheel || closing || projectCount <= 1) {
+      return;
+    }
+
+    const clearWheelLock = () => {
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+        wheelTimeoutRef.current = null;
+      }
+
+      wheelLockedRef.current = false;
+    };
+
+    const scheduleWheelReset = () => {
+      if (wheelGestureTimeoutRef.current) {
+        clearTimeout(wheelGestureTimeoutRef.current);
+      }
+
+      wheelGestureTimeoutRef.current = setTimeout(() => {
+        wheelDeltaRef.current = 0;
+        wheelGestureTimeoutRef.current = null;
+      }, WHEEL_GESTURE_RESET_MS);
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const now = performance.now();
+      const timeSinceLastWheel = now - lastWheelTimeRef.current;
+
+      lastWheelTimeRef.current = now;
+
+      if (wheelLockedRef.current) {
+        return;
+      }
+
+      if (timeSinceLastWheel > WHEEL_DIRECTION_RESET_MS) {
+        wheelDeltaRef.current = 0;
+      }
+
+      scheduleWheelReset();
+      wheelDeltaRef.current += event.deltaY;
+
+      if (Math.abs(wheelDeltaRef.current) < WHEEL_THRESHOLD) {
+        return;
+      }
+
+      const direction = wheelDeltaRef.current > 0 ? 1 : -1;
+
+      wheelDeltaRef.current = 0;
+      wheelLockedRef.current = true;
+
+      const nextIndex =
+        (activeIndexRef.current + direction + projectCount) % projectCount;
+
+      activeIndexRef.current = nextIndex;
+      onActiveIndexChange(nextIndex);
+
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+
+      wheelTimeoutRef.current = setTimeout(() => {
+        wheelLockedRef.current = false;
+        wheelTimeoutRef.current = null;
+      }, WHEEL_LOCK_DURATION);
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        touchTriggeredRef.current = true;
+        return;
+      }
+
+      touchStartYRef.current = event.touches[0].clientY;
+      touchTriggeredRef.current = false;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        return;
+      }
+
+      const deltaY = touchStartYRef.current - event.touches[0].clientY;
+
+      if (Math.abs(deltaY) < TOUCH_THRESHOLD) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (touchTriggeredRef.current || wheelLockedRef.current) {
+        return;
+      }
+
+      touchTriggeredRef.current = true;
+      wheelLockedRef.current = true;
+
+      const direction = deltaY > 0 ? 1 : -1;
+
+      const nextIndex =
+        (activeIndexRef.current + direction + projectCount) % projectCount;
+
+      activeIndexRef.current = nextIndex;
+      onActiveIndexChange(nextIndex);
+
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+
+      wheelTimeoutRef.current = setTimeout(() => {
+        wheelLockedRef.current = false;
+        wheelTimeoutRef.current = null;
+      }, WHEEL_LOCK_DURATION);
+    };
+
+    const handleTouchEnd = () => {
+      touchTriggeredRef.current = false;
+    };
+
+    window.addEventListener("wheel", handleWheel, {
+      passive: false,
+    });
+
+    window.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+
+    window.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+
+    window.addEventListener("touchend", handleTouchEnd, {
+      passive: true,
+    });
+
+    window.addEventListener("touchcancel", handleTouchEnd, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchEnd);
+
+      clearWheelLock();
+
+      if (wheelGestureTimeoutRef.current) {
+        clearTimeout(wheelGestureTimeoutRef.current);
+        wheelGestureTimeoutRef.current = null;
+      }
+
+      wheelDeltaRef.current = 0;
+      touchTriggeredRef.current = false;
+    };
+  }, [enableWheel, closing, projectCount, onActiveIndexChange]);
+
+  useEffect(() => {
+    return () => {
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+
+      if (wheelGestureTimeoutRef.current) {
+        clearTimeout(wheelGestureTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  if (projectCount === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`relative w-full overflow-visible ${className}`}
+      style={{
+        height: "clamp(320px, 50vh, 700px)",
+        perspective: "1200px",
+        overflow: "visible",
+        isolation: "isolate",
+        touchAction: "none",
+        pointerEvents: closing ? "none" : "auto",
+      }}
+    >
+      {projects.map((project, index) => {
+        // Hitung jarak melingkar untuk infinite carousel.
+        let distance = index - activeIndex;
+
+        if (distance > projectCount / 2) {
+          distance -= projectCount;
+        } else if (distance < -projectCount / 2) {
+          distance += projectCount;
+        }
+
+        const isActive = distance === 0;
+        const isVisible = isActive;
+
+        const offsetY = distance * CARD_SPACING;
+        const scale = isActive ? 1 : IDLE_SCALE;
+        const opacity = isActive ? 1 : 0;
+        const blur = 0;
+        const rotateX = isActive ? 0 : distance * 5;
+
+        return (
+          <div
+            key={project.slug}
+            aria-hidden={!isActive}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: 0,
+              width: "100%",
+              zIndex: isActive
+                ? projectCount + 1
+                : projectCount - Math.abs(distance),
+              opacity,
+              visibility: isVisible ? "visible" : "hidden",
+              pointerEvents: isActive && !closing ? "auto" : "none",
+              transform: `
+                translate3d(0, calc(-50% + ${offsetY}px), 0)
+                scale(${scale})
+                rotateX(${rotateX}deg)
+              `,
+              filter: `blur(${blur}px)`,
+              transformOrigin: "center center",
+              backfaceVisibility: "hidden",
+              transition: [
+                "transform 650ms cubic-bezier(0.22, 1, 0.36, 1)",
+                "opacity 500ms ease",
+                "filter 500ms ease",
+              ].join(", "),
+              willChange: "transform, opacity, filter",
+            }}
+          >
+            <PortfolioCard
+              project={project}
+              closing={isActive && closing}
+              enableLayoutId={enableLayoutId}
+              onActivate={isActive ? onOpen : undefined}
+              onCollapseComplete={isActive ? onCollapseComplete : undefined}
+              onPrefetch={isActive ? onPrefetch : undefined}
+              previewFan={isActive && previewFan}
+              className={className}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -10,13 +10,16 @@ import ThemeCta from "@/components/ui/theme-cta";
 import { IntroProvider } from "@/components/portfolio/intro";
 import { useProjectSelection } from "@/components/portfolio/project-selection";
 import { about } from "@/content/about";
+import {
+  subscribeNavAnimation,
+  clearTransitionContext,
+  peekTransitionContext,
+} from "@/components/portfolio/nav-intent";
 import type { Project } from "@/types/project";
 
 type HeroSectionProps = {
   projects: Project[];
 };
-
-const FAN_CLOSE_MS = 320;
 
 export default function HeroSection({ projects }: HeroSectionProps) {
   const router = useRouter();
@@ -32,35 +35,77 @@ export default function HeroSection({ projects }: HeroSectionProps) {
   const [aboutExiting, setAboutExiting] = useState(false);
 
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const aboutNavigatingRef = useRef(false);
   const aboutWarmRef = useRef(false);
+  const navigationStartedRef = useRef(false);
 
   const activeProject = projects[activeIndex];
 
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
   const handleActiveIndexChange = useCallback(
     (index: number) => {
+      if (closing) return;
+
       setActiveIndex(index);
 
       const next = projects[index];
-      if (next) setActiveSlug(next.slug);
+      if (next) {
+        setActiveSlug(next.slug);
+      }
     },
-    [projects, setActiveSlug],
+    [closing, projects, setActiveSlug],
   );
 
   const handleOpen = useCallback(() => {
-    if (!activeProject || closing) return;
-
-    setClosing(true);
-
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
+    if (!activeProject || closing || navigationStartedRef.current) {
+      return;
     }
 
-    closeTimerRef.current = setTimeout(() => {
-      router.push(`/project/${activeProject.slug}` as Route);
-    }, FAN_CLOSE_MS);
-  }, [activeProject, closing, router]);
+    navigationStartedRef.current = true;
+    setClosing(true);
+
+    clearCloseTimer();
+
+    router.push(`/project/${activeProject.slug}` as Route, {
+      transitionTypes: ["project-open"],
+    });
+  }, [activeProject, closing, router, clearCloseTimer]);
+
+  const handleCollapseComplete = useCallback(() => {
+    // No-op: navigation already started immediately on click.
+  }, []);
+
+  // Reset state saat kembali dari project detail.
+  useEffect(() => {
+    const unsubscribe = subscribeNavAnimation((phase) => {
+      if (phase !== "navigating") return;
+
+      const intent = peekTransitionContext()?.intent;
+
+      if (intent === "home-from-project") {
+        clearCloseTimer();
+        navigationStartedRef.current = false;
+        setClosing(false);
+      }
+
+      if (intent === "home-cold") {
+        aboutNavigatingRef.current = false;
+        setAboutExiting(false);
+      }
+    });
+
+    return unsubscribe;
+  }, [clearCloseTimer]);
+
+  // Home dapat dipulihkan dari route cache. Reset state exit ketika Project
+  // Detail / About memberi sinyal bahwa navigasi kembali ke Home akan dimulai.
+  // (Duplicate useEffect removed - handled by the one above)
 
   const handleOpenAbout = useCallback(() => {
     if (aboutNavigatingRef.current) return;
@@ -113,13 +158,7 @@ export default function HeroSection({ projects }: HeroSectionProps) {
     router.prefetch("/about" as Route);
   }, [router]);
 
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
   return (
     <IntroProvider>
@@ -127,21 +166,20 @@ export default function HeroSection({ projects }: HeroSectionProps) {
         id="top"
         className="bg-surface text-foreground relative min-h-[100svh] w-full overflow-x-clip md:min-h-[200svh]"
       >
-        {/* Sticky viewport — desktop scroll-lock behavior */}
         <div className="relative flex min-h-[100svh] w-full items-center px-6 sm:px-10 md:sticky md:top-0 md:h-[100svh] md:min-h-0 lg:px-48">
-          {/* Theme switch CTA */}
           <div className="fixed top-5 right-5 z-50">
             <ThemeCta />
           </div>
 
-          {/* Main composition */}
           <div className="relative mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-2 py-8 md:grid-cols-[1fr_0.95fr] md:gap-10 md:py-24 lg:gap-20">
-            {/* Left: identity */}
+            {/* Jangan jadikan seluruh HeroIdentity satu View Transition snapshot.
+                Heading dan actions tetap dikelola oleh Framer Motion. */}
             <section className="relative z-10 flex w-full flex-col items-center md:items-start">
-              <HeroIdentity onOpenAbout={handleOpenAbout} />
+              <HeroIdentity
+                onOpenAbout={handleOpenAbout}
+              />
             </section>
 
-            {/* Right: featured work carousel */}
             <section className="relative flex items-center justify-center">
               <FeaturedWork
                 projects={projects}
@@ -149,6 +187,7 @@ export default function HeroSection({ projects }: HeroSectionProps) {
                 onActiveIndexChange={handleActiveIndexChange}
                 closing={closing}
                 onOpen={handleOpen}
+                onCollapseComplete={handleCollapseComplete}
                 onPrefetch={handlePrefetch}
                 aboutExit={aboutExiting}
                 onAboutExit={handleAboutLeft}

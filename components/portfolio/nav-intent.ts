@@ -1,13 +1,18 @@
+
 /**
  * nav-intent.ts — Navigation Intent & Transition Coordinator
  *
  * Fungsi:
- * 1. Navigation Context: identitas navigasi eksplisit (id, source, destination, intent).
- * 2. Transition Coordinator: orkestrasi exit animations, completion signals, lalu navigate.
- * 3. Phase emitter: untuk listener animasi (WAAPI exit, dll) yang perlu sinkron.
+ * 1. Navigation Context: identitas navigasi eksplisit.
+ * 2. Transition Coordinator: orkestrasi exit animations, completion signals,
+ *    lalu navigate.
+ * 3. Phase emitter: untuk listener animasi yang perlu sinkron.
  */
 
-export type NavIntent = "about-cold" | "home-cold";
+export type NavIntent =
+  | "about-cold"
+  | "home-cold"
+  | "home-from-project";
 
 export type TransitionStatus =
   | "idle"
@@ -118,11 +123,6 @@ export function registerExitAnimations(
   animations: ExitAnimation[],
 ): void {
   currentExitAnimations = animations.map((a) => {
-    /**
-     * Runtime validation:
-     * Mencegah error jika object yang diterima tidak memiliki
-     * fungsi run yang valid.
-     */
     if (!a || typeof a.run !== "function") {
       console.error(
         "[nav-intent] Invalid animation object:",
@@ -155,23 +155,23 @@ export function registerExitAnimations(
   });
 }
 
-export async function waitForExitAnimations(): Promise<void> {
-  if (currentExitAnimations.length === 0) return;
-
+/**
+ * Menunggu seluruh animasi WAAPI yang terdaftar dan completion
+ * Promise tambahan, misalnya animasi exit dari Framer Motion.
+ */
+export async function waitForExitAnimations(
+  completionPromises: Promise<unknown>[] = [],
+): Promise<void> {
   setContextStatus("exiting");
 
-  const promises = currentExitAnimations.map(
+  const animationPromises = currentExitAnimations.map(
     async ({ name, animation }) => {
       if (!animation) return;
 
       try {
         await animation.finished;
       } catch (error) {
-        /**
-         * Animation.finished dapat reject ketika animasi dibatalkan.
-         * Cancellation ditangani di sini agar tidak menghasilkan
-         * unhandled Promise rejection.
-         */
+        // Animation.finished dapat reject ketika animasi dibatalkan.
         if (process.env.NODE_ENV === "development") {
           console.debug(
             `[nav-intent] Animation "${name}" cancelled:`,
@@ -182,7 +182,21 @@ export async function waitForExitAnimations(): Promise<void> {
     },
   );
 
-  await Promise.all(promises);
+  const additionalPromises = completionPromises.map((promise) =>
+    promise.catch((error) => {
+      if (process.env.NODE_ENV === "development") {
+        console.debug(
+          "[nav-intent] Additional exit completion rejected:",
+          error,
+        );
+      }
+    }),
+  );
+
+  await Promise.all([
+    ...animationPromises,
+    ...additionalPromises,
+  ]);
 
   currentExitAnimations = [];
 }
@@ -225,6 +239,7 @@ async function completeExitTransition(
   onNavigate: () => void,
   options?: {
     emitPanelExit?: boolean;
+    completionPromises?: Promise<unknown>[];
   },
 ): Promise<void> {
   emitPhase("button-exit");
@@ -237,7 +252,7 @@ async function completeExitTransition(
     emitPhase("panel-exit");
   }
 
-  await waitForExitAnimations();
+  await waitForExitAnimations(options?.completionPromises);
 
   setContextStatus("navigating");
   emitPhase("navigating");
@@ -253,11 +268,6 @@ export async function orchestrateExitToAbout(
     createTransitionContext("home", "about", "about-cold"),
   );
 
-  /**
-   * Reduced motion:
-   * Context tetap dibuat agar destination dapat membaca intent.
-   * Exit animation tidak dijalankan.
-   */
   if (prefersReducedMotion()) {
     currentExitAnimations = [];
 
@@ -278,16 +288,17 @@ export async function orchestrateExitToAbout(
 export async function orchestrateExitToHome(
   onNavigate: () => void,
   exitAnimations: ExitAnimation[],
+  completionPromises: Promise<unknown>[] = [],
+  source: "about" | "project" = "about",
 ): Promise<void> {
   setTransitionContext(
-    createTransitionContext("about", "home", "home-cold"),
+    createTransitionContext(
+      source,
+      "home",
+      source === "project" ? "home-from-project" : "home-cold",
+    ),
   );
 
-  /**
-   * Reduced motion:
-   * Context tetap dibuat agar destination dapat membaca intent.
-   * Exit animation tidak dijalankan.
-   */
   if (prefersReducedMotion()) {
     currentExitAnimations = [];
 
@@ -300,7 +311,9 @@ export async function orchestrateExitToHome(
 
   registerExitAnimations(exitAnimations);
 
-  await completeExitTransition(onNavigate);
+  await completeExitTransition(onNavigate, {
+    completionPromises,
+  });
 }
 
 // ============================================================================
@@ -339,3 +352,4 @@ export function resetNavAnimation(): void {
 
   phaseListeners.forEach((callback) => callback("idle"));
 }
+
